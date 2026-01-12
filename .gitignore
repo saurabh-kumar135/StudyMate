@@ -33,6 +33,10 @@ uploads/
 !public/**/*.jpeg
 !public/**/*.png
 !public/**/*.gif
+!screenshots/**/*.jpg
+!screenshots/**/*.jpeg
+!screenshots/**/*.png
+!screenshots/**/*.gif
 
 # Logs
 logs
