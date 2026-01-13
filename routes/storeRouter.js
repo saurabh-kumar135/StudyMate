@@ -2,7 +2,6 @@
 const express = require("express");
 const storeRouter = express.Router();
 
-// Local Module
 const storeController = require("../controllers/storeController");
 
 storeRouter.get("/api", storeController.getIndex);

@@ -7,12 +7,10 @@ const {
   removePendingVerification 
 } = require('../utils/otpStorage');
 
-// Send OTP for phone verification
 exports.sendPhoneOTP = async (req, res) => {
   try {
     const { phoneNumber, firstName, lastName, password, userType } = req.body;
 
-    // Validate phone number format (basic validation)
     if (!phoneNumber || phoneNumber.length < 10) {
       return res.status(400).json({
         success: false,
@@ -20,7 +18,6 @@ exports.sendPhoneOTP = async (req, res) => {
       });
     }
 
-    // Check if phone number already exists with verified account
     const existingUser = await User.findOne({ phoneNumber });
     if (existingUser && existingUser.phoneVerified) {
       return res.status(400).json({
@@ -29,14 +26,11 @@ exports.sendPhoneOTP = async (req, res) => {
       });
     }
 
-    // Generate OTP
     const otp = generateOTP();
-    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const otpExpires = Date.now() + 5 * 60 * 1000; 
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store in temporary memory (NOT in database)
     storePendingVerification(phoneNumber, {
       firstName,
       lastName,
@@ -45,11 +39,10 @@ exports.sendPhoneOTP = async (req, res) => {
       authMethod: 'phone'
     }, otp, otpExpires);
 
-    // Send OTP via SMS
     const smsResult = await sendPhoneOTP(phoneNumber, otp, firstName);
 
     if (!smsResult.success) {
-      // Remove from temporary storage if SMS fails
+      
       removePendingVerification(phoneNumber);
       return res.status(500).json({
         success: false,
@@ -72,12 +65,10 @@ exports.sendPhoneOTP = async (req, res) => {
   }
 };
 
-// Verify phone OTP and complete registration
 exports.verifyPhoneOTP = async (req, res) => {
   try {
     const { phoneNumber, otp } = req.body;
 
-    // Get from temporary storage
     const pendingData = getPendingVerification(phoneNumber);
 
     if (!pendingData) {
@@ -87,7 +78,6 @@ exports.verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    // Check OTP expiry
     if (Date.now() > pendingData.expiresAt) {
       removePendingVerification(phoneNumber);
       return res.status(400).json({
@@ -96,7 +86,6 @@ exports.verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    // Verify OTP
     if (pendingData.otp !== otp) {
       return res.status(400).json({
         success: false,
@@ -104,7 +93,6 @@ exports.verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    // Check if user was created in the meantime (edge case)
     const existingUser = await User.findOne({ phoneNumber });
     if (existingUser && existingUser.phoneVerified) {
       removePendingVerification(phoneNumber);
@@ -114,23 +102,20 @@ exports.verifyPhoneOTP = async (req, res) => {
       });
     }
 
-    // CREATE user in database (ONLY after successful OTP verification)
     const newUser = new User({
       firstName: pendingData.firstName,
       lastName: pendingData.lastName,
       phoneNumber: phoneNumber,
-      password: pendingData.password, // Already hashed
+      password: pendingData.password, 
       userType: pendingData.userType,
-      phoneVerified: true, // Mark as verified immediately
+      phoneVerified: true, 
       authProvider: 'phone',
       authMethod: 'phone'
     });
     await newUser.save();
 
-    // Remove from temporary storage
     removePendingVerification(phoneNumber);
 
-    // Create session
     req.session.isLoggedIn = true;
     req.session.user = newUser;
 
@@ -155,12 +140,10 @@ exports.verifyPhoneOTP = async (req, res) => {
   }
 };
 
-// Resend phone OTP
 exports.resendPhoneOTP = async (req, res) => {
   try {
     const { phoneNumber } = req.body;
 
-    // Get from temporary storage
     const pendingData = getPendingVerification(phoneNumber);
 
     if (!pendingData) {
@@ -170,11 +153,9 @@ exports.resendPhoneOTP = async (req, res) => {
       });
     }
 
-    // Generate new OTP
     const otp = generateOTP();
-    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const otpExpires = Date.now() + 5 * 60 * 1000; 
 
-    // Update temporary storage with new OTP
     storePendingVerification(phoneNumber, {
       firstName: pendingData.firstName,
       lastName: pendingData.lastName,
@@ -183,7 +164,6 @@ exports.resendPhoneOTP = async (req, res) => {
       authMethod: 'phone'
     }, otp, otpExpires);
 
-    // Send OTP via SMS
     const smsResult = await sendPhoneOTP(phoneNumber, otp, pendingData.firstName);
 
     if (!smsResult.success) {

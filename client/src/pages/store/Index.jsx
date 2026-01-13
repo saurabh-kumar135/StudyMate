@@ -11,15 +11,13 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
-  
-  // Search filter states
+
   const [searchCity, setSearchCity] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [guests, setGuests] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  
-  // Categories with icons
+
   const categories = [
     { id: 'all', name: 'All', icon: '🏠' },
     { id: 'beachfront', name: 'Beachfront', icon: '🏖️' },
@@ -32,24 +30,21 @@ const Index = () => {
     { id: 'tiny-homes', name: 'Tiny homes', icon: '🏡' },
     { id: 'treehouses', name: 'Treehouses', icon: '🌳' },
   ];
-  
-  // Filtered homes based on search criteria
+
   const filteredHomes = homes.filter(home => {
-    // City filter
+    
     const matchesCity = searchCity === '' || 
       home.location.toLowerCase().includes(searchCity.toLowerCase());
-    
-    // Price range filter
+
     const homePrice = Number(home.price);
     const matchesMinPrice = minPrice === '' || homePrice >= Number(minPrice);
     const matchesMaxPrice = maxPrice === '' || homePrice <= Number(maxPrice);
-    
-    // Category filter (simplified - in real app would match home.category)
+
     const matchesCategory = selectedCategory === 'all';
     
     return matchesCity && matchesMinPrice && matchesMaxPrice && matchesCategory;
   });
-// pending
+
   useEffect(() => {
     fetchHomes();
   }, []);
@@ -77,21 +72,21 @@ const Index = () => {
   };
 
   const handleSearch = () => {
-    // Search is automatically handled by filteredHomes
+    
   };
 
   return (
     <>
       <Navbar currentPage="index" />
       
-      {/* Hero Section with Background */}
+      {}
       <div className="relative bg-gradient-to-r from-red-50 to-orange-50 overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-20"></div>
         </div>
         
         <div className="relative container mx-auto px-4 py-12">
-          {/* Hero Text */}
+          {}
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-3">
               Find your next <span className="text-[#A67C52]">adventure</span>
@@ -101,12 +96,12 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Enhanced Search Bar */}
+          {}
           <div className="max-w-5xl mx-auto">
             <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-3">
               <div className="flex flex-col lg:flex-row items-center gap-3">
                 
-                {/* Where - City Search */}
+                {}
                 <div className="flex-1 w-full px-4 py-3 hover:bg-gray-50 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200">
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Where
@@ -120,8 +115,7 @@ const Index = () => {
                   />
                 </div>
 
-
-                {/* Price From */}
+                {}
                 <div className="flex-1 w-full px-4 py-3 hover:bg-gray-50 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200">
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Price From
@@ -135,10 +129,10 @@ const Index = () => {
                   />
                 </div>
 
-                {/* Divider */}
+                {}
                 <div className="hidden lg:block w-px h-12 bg-gray-200"></div>
 
-                {/* Price To */}
+                {}
                 <div className="flex-1 w-full px-4 py-3 hover:bg-gray-50 rounded-xl transition cursor-pointer border border-transparent hover:border-gray-200">
                   <label className="block text-xs font-bold text-gray-700 mb-1">
                     Price To
@@ -152,7 +146,7 @@ const Index = () => {
                   />
                 </div>
 
-                {/* Search Button */}
+                {}
                 <button
                   onClick={handleSearch}
                   className="bg-[#A67C52] hover:bg-[#8B6F47] text-white px-8 py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-95 font-semibold"
@@ -175,12 +169,10 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {}
       <main className="container mx-auto px-4 mt-8 mb-16">
-        
 
-
-        {/* Results Header */}
+        {}
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
@@ -191,7 +183,7 @@ const Index = () => {
             </p>
           </div>
           
-          {/* Sort/Filter Buttons */}
+          {}
           <div className="flex gap-2">
             <button className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-400 transition flex items-center gap-2 text-sm font-medium">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -202,7 +194,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Homes Grid */}
+        {}
         {loading ? (
           <div className="text-center py-20">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-[#A67C52] border-t-transparent"></div>
@@ -241,7 +233,7 @@ const Index = () => {
         )}
       </main>
 
-      {/* Footer Component */}
+      {}
       <Footer />
     </>
   );

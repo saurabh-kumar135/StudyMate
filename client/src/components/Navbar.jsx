@@ -15,7 +15,7 @@ const Navbar = ({ currentPage }) => {
   return (
     <header className="bg-[#D4B896] text-white p-4 shadow-md sticky top-0 z-10">
       <nav className="container mx-auto">
-        {/* Desktop Navigation */}
+        {}
         <div className="hidden md:flex md:justify-between md:items-center">
           <ul className="flex items-center flex-wrap gap-1">
             <li>
@@ -137,7 +137,7 @@ const Navbar = ({ currentPage }) => {
           </ul>
         </div>
 
-        {/* Mobile Navigation */}
+        {}
         <div className="md:hidden">
           <div className="flex justify-between items-center">
             <Link

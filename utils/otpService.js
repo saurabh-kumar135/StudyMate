@@ -1,12 +1,10 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Create email transporter
 const createTransporter = () => {
   return nodemailer.createTransport({
     service: 'gmail',
@@ -17,7 +15,6 @@ const createTransporter = () => {
   });
 };
 
-// Send OTP email
 const sendOTPEmail = async (email, otp, firstName) => {
   const transporter = createTransporter();
   

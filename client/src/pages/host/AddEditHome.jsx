@@ -16,7 +16,7 @@ const AddEditHome = () => {
     rating: '',
     description: '',
   });
-  const [photos, setPhotos] = useState([]); // Changed from single photo to array
+  const [photos, setPhotos] = useState([]); 
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -53,7 +53,7 @@ const AddEditHome = () => {
   };
 
   const handleFileChange = (e) => {
-    // Convert FileList to array
+    
     setPhotos(Array.from(e.target.files));
   };
 
@@ -68,11 +68,10 @@ const AddEditHome = () => {
     data.append('location', formData.location);
     data.append('rating', formData.rating);
     data.append('description', formData.description);
-    
-    // Append multiple photos
+
     if (photos.length > 0) {
       photos.forEach(photo => {
-        data.append('photos', photo); // 'photos' matches multer field name
+        data.append('photos', photo); 
       });
     }
     

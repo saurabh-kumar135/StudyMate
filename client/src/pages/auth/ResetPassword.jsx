@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import ErrorAlert from '../../components/ErrorAlert';
 import axios from 'axios';
+import { API_URL } from '../../config/api';
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -20,7 +21,7 @@ const ResetPassword = () => {
 
   const validateToken = async () => {
     try {
-      const response = await axios.get(`http://localhost:3009/api/password-reset/validate/${token}`);
+      const response = await axios.get(`${API_URL}/api/password-reset/validate/${token}`);
       if (response.data.success) {
         setTokenValid(true);
       } else {
@@ -39,13 +40,11 @@ const ResetPassword = () => {
     e.preventDefault();
     setErrors([]);
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setErrors(['Passwords do not match']);
       return;
     }
 
-    // Validate password length
     if (password.length < 6) {
       setErrors(['Password must be at least 6 characters long']);
       return;
@@ -54,13 +53,13 @@ const ResetPassword = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3009/api/password-reset/reset', {
+      const response = await axios.post(`${API_URL}/api/password-reset/reset`, {
         token,
         newPassword: password
       });
 
       if (response.data.success) {
-        // Show success and redirect to login
+        
         alert('Password reset successfully! You can now log in with your new password.');
         navigate('/login');
       } else {

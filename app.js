@@ -2,16 +2,15 @@
 const path = require('path');
 require('dotenv').config();
 
-// External Module
 const express = require('express');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
 const { default: mongoose } = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
+const helmet = require('helmet');
 const DB_PATH = process.env.MONGODB_URI || "mongodb://localhost:27017/havento";
 
-//Local Module
 const storeRouter = require("./routes/storeRouter")
 const hostRouter = require("./routes/hostRouter")
 const authRouter = require("./routes/authRouter")
@@ -19,16 +18,36 @@ const passwordResetRouter = require("./routes/passwordResetRoutes")
 const emailVerificationRouter = require("./routes/emailVerificationRoutes")
 const phoneVerificationRouter = require("./routes/phoneVerificationRoutes")
 const googleAuthRouter = require("./routes/googleAuth")
-const passport = require('./config/passport'); // Passport configuration
+const passport = require('./config/passport'); 
 const rootDir = require("./utils/pathUtil");
 const errorsController = require("./controllers/errors");
+const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
-// CORS configuration for React frontend
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174', 
+  'http://localhost:5175',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'], // Vite dev server (multiple ports)
-  credentials: true // Allow cookies/sessions
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 
 const store = new MongoDBStore({
@@ -66,9 +85,9 @@ const multerOptions = {
   storage, fileFilter
 };
 
-app.use(express.json()); // Parse JSON data from React frontend
+app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
-app.use(multer(multerOptions).array('photos', 5)); // Allow up to 5 photos
+app.use(multer(multerOptions).array('photos', 5)); 
 app.use(express.static(path.join(rootDir, 'public')))
 app.use("/uploads", express.static(path.join(rootDir, 'uploads')))
 app.use("/host/uploads", express.static(path.join(rootDir, 'uploads')))
@@ -81,7 +100,6 @@ app.use(session({
   store
 }));
 
-// Initialize Passport.js for Google OAuth
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -90,14 +108,15 @@ app.use((req, res, next) => {
   next();
 })
 
+app.use('/api/', apiLimiter);
+
 app.use(authRouter);
 app.use('/api/password-reset', passwordResetRouter);
 app.use('/api/verify-email', emailVerificationRouter);
-app.use('/api/verify-phone', phoneVerificationRouter); // Phone verification routes
-app.use('/api/auth', googleAuthRouter); // Google OAuth routes
+app.use('/api/verify-phone', phoneVerificationRouter); 
+app.use('/api/auth', googleAuthRouter); 
 app.use(storeRouter);
 app.use(hostRouter);
-
 
 app.use(errorsController.pageNotFound);
 

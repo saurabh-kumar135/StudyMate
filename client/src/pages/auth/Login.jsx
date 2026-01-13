@@ -38,7 +38,7 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="max-w-md mx-auto">
           <ErrorAlert errors={errors} />
           
-          {/* Email field */}
+          {}
           <div className="mb-5">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <div className="relative">
@@ -58,7 +58,7 @@ const Login = () => {
             </div>
           </div>
           
-          {/* Password field */}
+          {}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-1">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
@@ -85,13 +85,12 @@ const Login = () => {
               />
             </div>
           </div>
-          
-          
-          {/* Google Sign-In Button */}
+
+          {}
           <div className="mb-4">
             <GoogleLogin
               onSuccess={(credentialResponse) => {
-                // Redirect to backend for Google OAuth
+                
                 window.location.href = 'http://localhost:5000/api/auth/google';
               }}
               onError={() => {
@@ -106,14 +105,14 @@ const Login = () => {
             />
           </div>
 
-          {/* Divider */}
+          {}
           <div className="flex items-center my-6">
             <div className="flex-1 border-t border-gray-300"></div>
             <span className="px-4 text-gray-500 text-sm">OR</span>
             <div className="flex-1 border-t border-gray-300"></div>
           </div>
 
-          {/* Submit button */}
+          {}
           <button 
             type="submit" 
             disabled={loading}
@@ -123,7 +122,7 @@ const Login = () => {
             <i className="fas fa-sign-in-alt ml-2"></i>
           </button>
           
-          {/* Sign up link */}
+          {}
           <p className="text-center mt-6 text-gray-600">
             Don't have an account yet? <Link to="/signup" className="text-red-500 hover:underline">Sign up</Link>
           </p>

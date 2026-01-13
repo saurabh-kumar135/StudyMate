@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Auth Pages
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -11,18 +10,15 @@ import VerifyEmail from './pages/auth/VerifyEmail';
 import VerifyPhone from './pages/auth/VerifyPhone';
 import GoogleAuthSuccess from './pages/auth/GoogleAuthSuccess';
 
-// Store Pages
 import Index from './pages/store/Index';
 import HomeList from './pages/store/HomeList';
 import HomeDetail from './pages/store/HomeDetail';
 import FavouriteList from './pages/store/FavouriteList';
 import Bookings from './pages/store/Bookings';
 
-// Host Pages
 import AddEditHome from './pages/host/AddEditHome';
 import HostHomeList from './pages/host/HostHomeList';
 
-// Other
 import NotFound from './pages/NotFound';
 
 import './index.css';
@@ -33,7 +29,7 @@ function App() {
       <Router>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            {/* Public Routes */}
+            {}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -45,7 +41,7 @@ function App() {
             <Route path="/homes" element={<HomeList />} />
             <Route path="/homes/:homeId" element={<HomeDetail />} />
             
-            {/* Protected Routes - Guest */}
+            {}
             <Route path="/favourites" element={
               <ProtectedRoute>
                 <FavouriteList />
@@ -57,7 +53,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* Protected Routes - Host */}
+            {}
             <Route path="/host/add-home" element={
               <ProtectedRoute>
                 <AddEditHome />
@@ -74,7 +70,7 @@ function App() {
               </ProtectedRoute>
             } />
             
-            {/* 404 */}
+            {}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

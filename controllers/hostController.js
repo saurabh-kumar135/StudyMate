@@ -54,9 +54,8 @@ exports.getHostHomes = (req, res, next) => {
 exports.postAddHome = (req, res, next) => {
   const { houseName, price, location, rating, description } = req.body;
   console.log(houseName, price, location, rating, description);
-  console.log(req.files); // Changed from req.file to req.files
+  console.log(req.files); 
 
-  // Check if files were uploaded
   if (!req.files || req.files.length === 0) {
     return res.status(422).json({
       success: false,
@@ -64,7 +63,6 @@ exports.postAddHome = (req, res, next) => {
     });
   }
 
-  // Get array of photo paths
   const photos = req.files.map(file => file.path);
 
   const home = new Home({
@@ -72,7 +70,7 @@ exports.postAddHome = (req, res, next) => {
     price,
     location,
     rating,
-    photos, // Changed from photo to photos array
+    photos, 
     description,
   });
   home.save().then(() => {
@@ -96,9 +94,8 @@ exports.postEditHome = (req, res, next) => {
       home.rating = rating;
       home.description = description;
 
-      // Handle multiple new photos
       if (req.files && req.files.length > 0) {
-        // Delete old photos
+        
         if (home.photos && home.photos.length > 0) {
           home.photos.forEach(photoPath => {
             fs.unlink(photoPath, (err) => {
@@ -106,7 +103,7 @@ exports.postEditHome = (req, res, next) => {
             });
           });
         }
-        // Add new photos
+        
         home.photos = req.files.map(file => file.path);
       }
 

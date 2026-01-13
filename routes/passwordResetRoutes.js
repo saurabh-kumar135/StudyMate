@@ -1,14 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const passwordResetController = require('../controllers/passwordResetController');
+const { passwordResetLimiter } = require('../middleware/rateLimiter');
 
-// Request password reset
-router.post('/request', passwordResetController.requestPasswordReset);
-
-// Validate reset token
+router.post('/request', passwordResetLimiter, passwordResetController.requestPasswordReset);
 router.get('/validate/:token', passwordResetController.validateResetToken);
-
-// Reset password
-router.post('/reset', passwordResetController.resetPassword);
+router.post('/reset', passwordResetLimiter, passwordResetController.resetPassword);
 
 module.exports = router;

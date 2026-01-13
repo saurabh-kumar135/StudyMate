@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getHomeDetails, addToFavourite } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
+import { getImageUrl } from '../../config/api';
 
 const HomeDetail = () => {
   const { homeId } = useParams();
   const [home, setHome] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0); // For lightbox
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0); 
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
@@ -39,16 +40,12 @@ const HomeDetail = () => {
     }
   };
 
-  // Get array of images (handle both old 'photo' and new 'photos')
   const getImages = () => {
     if (home.photos && home.photos.length > 0) {
-      return home.photos.map(photo => 
-        photo.startsWith('http') ? photo : `http://localhost:3009/${photo}`
-      );
+      return home.photos.map(photo => getImageUrl(photo));
     }
     if (home.photo) {
-      const photoUrl = home.photo.startsWith('http') ? home.photo : `http://localhost:3009/${home.photo}`;
-      return [photoUrl];
+      return [getImageUrl(home.photo)];
     }
     return ['https://via.placeholder.com/800x600?text=No+Image'];
   };
@@ -77,11 +74,10 @@ const HomeDetail = () => {
 
   const images = getImages();
 
-  // LIGHTBOX: Show single enlarged image with navigation
   if (showAllPhotos) {
     return (
       <div className="fixed inset-0 bg-black z-50 flex flex-col">
-        {/* Header with close button */}
+        {}
         <div className="flex justify-between items-center p-4">
           <h2 className="text-white text-xl font-semibold">
             {selectedImageIndex + 1} / {images.length}
@@ -94,7 +90,7 @@ const HomeDetail = () => {
           </button>
         </div>
 
-        {/* Main enlarged image */}
+        {}
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="relative max-w-6xl w-full h-full flex items-center justify-center">
             <img 
@@ -103,7 +99,7 @@ const HomeDetail = () => {
               className="max-w-full max-h-full object-contain rounded-lg"
             />
 
-            {/* Previous button */}
+            {}
             {images.length > 1 && selectedImageIndex > 0 && (
               <button
                 onClick={() => setSelectedImageIndex(selectedImageIndex - 1)}
@@ -115,7 +111,7 @@ const HomeDetail = () => {
               </button>
             )}
 
-            {/* Next button */}
+            {}
             {images.length > 1 && selectedImageIndex < images.length - 1 && (
               <button
                 onClick={() => setSelectedImageIndex(selectedImageIndex + 1)}
@@ -129,7 +125,7 @@ const HomeDetail = () => {
           </div>
         </div>
 
-        {/* Thumbnail strip at bottom */}
+        {}
         <div className="bg-black/50 p-4 overflow-x-auto">
           <div className="flex gap-2 justify-center">
             {images.map((img, index) => (
@@ -163,10 +159,10 @@ const HomeDetail = () => {
           {home.houseName}
         </h2>
         
-        {/* AIRBNB-STYLE IMAGE GRID */}
+        {}
         <div className="relative mb-8">
           {images.length === 1 ? (
-            // Single image - full width
+            
             <div className="rounded-2xl overflow-hidden">
               <img 
                 src={images[0]} 
@@ -179,7 +175,7 @@ const HomeDetail = () => {
               />
             </div>
           ) : images.length === 2 ? (
-            // Two images - side by side
+            
             <div className="grid grid-cols-2 gap-2 rounded-2xl overflow-hidden">
               {images.map((img, index) => (
                 <img 
@@ -195,9 +191,9 @@ const HomeDetail = () => {
               ))}
             </div>
           ) : (
-            // 3+ images - Airbnb grid layout
+            
             <div className="grid grid-cols-4 grid-rows-2 gap-2 rounded-2xl overflow-hidden h-96">
-              {/* Main large image - left side */}
+              {}
               <div 
                 className="col-span-2 row-span-2 cursor-pointer hover:opacity-90 transition"
                 onClick={() => {
@@ -212,7 +208,7 @@ const HomeDetail = () => {
                 />
               </div>
               
-              {/* Top right images */}
+              {}
               <div 
                 className="col-span-1 row-span-1 cursor-pointer hover:opacity-90 transition"
                 onClick={() => {
@@ -240,7 +236,7 @@ const HomeDetail = () => {
                 />
               </div>
               
-              {/* Bottom right images */}
+              {}
               <div 
                 className="col-span-1 row-span-1 cursor-pointer hover:opacity-90 transition"
                 onClick={() => {
@@ -266,7 +262,7 @@ const HomeDetail = () => {
                   alt={`${home.houseName} 5`}
                   className="w-full h-full object-cover"
                 />
-                {/* Show more button if more than 5 images */}
+                {}
                 {images.length > 5 && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <span className="text-white font-semibold">+{images.length - 5} more</span>
@@ -277,9 +273,9 @@ const HomeDetail = () => {
           )}
         </div>
         
-        {/* DETAILS SECTION */}
+        {}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Left - Main Info */}
+          {}
           <div className="md:col-span-2 space-y-6">
             <div className="border-b pb-6">
               <h3 className="text-2xl font-semibold mb-2">{home.houseName}</h3>
@@ -306,7 +302,7 @@ const HomeDetail = () => {
             </div>
           </div>
           
-          {/* Right - Booking Card */}
+          {}
           <div className="md:col-span-1">
             <div className="border rounded-2xl p-6 shadow-lg sticky top-8">
               <div className="mb-6">

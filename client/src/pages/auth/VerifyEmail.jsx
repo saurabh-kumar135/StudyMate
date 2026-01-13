@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import ErrorAlert from '../../components/ErrorAlert';
 import axios from 'axios';
+import { API_URL } from '../../config/api';
 
 const VerifyEmail = () => {
   const location = useLocation();
@@ -14,17 +15,15 @@ const VerifyEmail = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState([]);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(300); 
   const [canResend, setCanResend] = useState(false);
 
-  // Redirect if no email in state
   useEffect(() => {
     if (!email) {
       navigate('/signup');
     }
   }, [email, navigate]);
 
-  // Countdown timer
   useEffect(() => {
     if (timeLeft === 0) {
       setCanResend(true);
@@ -38,40 +37,34 @@ const VerifyEmail = () => {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  // Format time as MM:SS
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle OTP input
   const handleChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return; // Only allow digits
+    if (!/^\d*$/.test(value)) return; 
 
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 5) {
       document.getElementById(`otp-${index + 1}`).focus();
     }
 
-    // Auto-submit when all 6 digits entered
     if (newOtp.every((digit) => digit !== '') && index === 5) {
       handleVerify(newOtp.join(''));
     }
   };
 
-  // Handle backspace
   const handleKeyDown = (index, e) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       document.getElementById(`otp-${index - 1}`).focus();
     }
   };
 
-  // Handle paste
   const handlePaste = (e) => {
     e.preventDefault();
     const pastedData = e.clipboardData.getData('text').slice(0, 6);
@@ -86,22 +79,21 @@ const VerifyEmail = () => {
     }
   };
 
-  // Verify OTP
   const handleVerify = async (otpCode) => {
     setLoading(true);
     setErrors([]);
 
     try {
       const response = await axios.post(
-        'http://localhost:3009/api/verify-email/verify-otp',
+        `${API_URL}/api/verify-email/verify-otp`,
         { email, otp: otpCode || otp.join('') },
         { withCredentials: true }
       );
 
       if (response.data.success) {
-        // Refresh auth context to get the new user session
+        
         await checkSessionStatus();
-        // Redirect to home page
+        
         navigate('/');
       } else {
         setErrors(response.data.errors || ['Verification failed']);
@@ -113,20 +105,19 @@ const VerifyEmail = () => {
     }
   };
 
-  // Resend OTP
   const handleResend = async () => {
     setLoading(true);
     setErrors([]);
 
     try {
       const response = await axios.post(
-        'http://localhost:3009/api/verify-email/resend-otp',
+        `${API_URL}/api/verify-email/resend-otp`,
         { email },
         { withCredentials: true }
       );
 
       if (response.data.success) {
-        setTimeLeft(300); // Reset timer
+        setTimeLeft(300); 
         setCanResend(false);
         setOtp(['', '', '', '', '', '']);
         document.getElementById('otp-0').focus();

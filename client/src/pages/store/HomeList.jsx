@@ -31,7 +31,7 @@ const HomeList = () => {
   const handleAddFavourite = async (homeId) => {
     try {
       await addToFavourite(homeId);
-      navigate('/favourites'); // Navigate to favourites page
+      navigate('/favourites'); 
     } catch (error) {
       console.error('Error adding to favourites:', error);
     }

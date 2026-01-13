@@ -7,12 +7,10 @@ const {
   removePendingVerification 
 } = require('../utils/otpStorage');
 
-// Send OTP for email verification
 exports.sendOTP = async (req, res) => {
   try {
     const { email, firstName, lastName, password, userType } = req.body;
 
-    // Check if email already exists with verified account
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.emailVerified) {
       return res.status(400).json({
@@ -21,14 +19,11 @@ exports.sendOTP = async (req, res) => {
       });
     }
 
-    // Generate OTP
     const otp = generateOTP();
-    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const otpExpires = Date.now() + 5 * 60 * 1000; 
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store in temporary memory (NOT in database)
     storePendingVerification(email, {
       firstName,
       lastName,
@@ -36,11 +31,10 @@ exports.sendOTP = async (req, res) => {
       userType
     }, otp, otpExpires);
 
-    // Send OTP email
     const emailResult = await sendOTPEmail(email, otp, firstName);
 
     if (!emailResult.success) {
-      // Remove from temporary storage if email fails
+      
       removePendingVerification(email);
       return res.status(500).json({
         success: false,
@@ -62,12 +56,10 @@ exports.sendOTP = async (req, res) => {
   }
 };
 
-// Verify OTP and complete registration
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    // Get from temporary storage
     const pendingData = getPendingVerification(email);
 
     if (!pendingData) {
@@ -77,7 +69,6 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Check OTP expiry
     if (Date.now() > pendingData.expiresAt) {
       removePendingVerification(email);
       return res.status(400).json({
@@ -86,7 +77,6 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Verify OTP
     if (pendingData.otp !== otp) {
       return res.status(400).json({
         success: false,
@@ -94,7 +84,6 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Check if user was created in the meantime (edge case)
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.emailVerified) {
       removePendingVerification(email);
@@ -104,21 +93,18 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // CREATE user in database (ONLY after successful OTP verification)
     const newUser = new User({
       firstName: pendingData.firstName,
       lastName: pendingData.lastName,
       email: email,
-      password: pendingData.password, // Already hashed
+      password: pendingData.password, 
       userType: pendingData.userType,
-      emailVerified: true // Mark as verified immediately
+      emailVerified: true 
     });
     await newUser.save();
 
-    // Remove from temporary storage
     removePendingVerification(email);
 
-    // Create session
     req.session.isLoggedIn = true;
     req.session.user = newUser;
 
@@ -143,12 +129,10 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
-// Resend OTP
 exports.resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Get from temporary storage
     const pendingData = getPendingVerification(email);
 
     if (!pendingData) {
@@ -158,11 +142,9 @@ exports.resendOTP = async (req, res) => {
       });
     }
 
-    // Generate new OTP
     const otp = generateOTP();
-    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const otpExpires = Date.now() + 5 * 60 * 1000; 
 
-    // Update temporary storage with new OTP
     storePendingVerification(email, {
       firstName: pendingData.firstName,
       lastName: pendingData.lastName,
@@ -170,7 +152,6 @@ exports.resendOTP = async (req, res) => {
       userType: pendingData.userType
     }, otp, otpExpires);
 
-    // Send OTP email
     const emailResult = await sendOTPEmail(email, otp, pendingData.firstName);
 
     if (!emailResult.success) {

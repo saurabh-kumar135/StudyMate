@@ -9,16 +9,16 @@ const userSchema = mongoose.Schema({
   email: {
     type: String,
     required: function() {
-      // Email required only if not using phone authentication
+      
       return !this.phoneNumber;
     },
     unique: true,
-    sparse: true // Allows null values while maintaining uniqueness
+    sparse: true 
   },
   phoneNumber: {
     type: String,
     unique: true,
-    sparse: true // Allows null values while maintaining uniqueness
+    sparse: true 
   },
   phoneVerified: {
     type: Boolean,
@@ -27,15 +27,15 @@ const userSchema = mongoose.Schema({
   password: {
     type: String,
     required: function() {
-      // Password only required for local authentication
+      
       return this.authProvider === 'local';
     }
   },
-  // Google OAuth fields
+  
   googleId: {
     type: String,
     unique: true,
-    sparse: true // Allows null values while maintaining uniqueness
+    sparse: true 
   },
   authProvider: {
     type: String,
@@ -48,7 +48,7 @@ const userSchema = mongoose.Schema({
     default: 'email'
   },
   profilePicture: {
-    type: String // URL to profile picture (from Google)
+    type: String 
   },
   userType: {
     type: String,

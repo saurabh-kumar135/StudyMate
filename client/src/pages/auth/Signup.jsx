@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import ErrorAlert from '../../components/ErrorAlert';
+import { API_URL } from '../../config/api';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -31,14 +32,12 @@ const Signup = () => {
     setLoading(true);
     setErrors([]);
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setErrors(['Passwords do not match']);
       setLoading(false);
       return;
     }
 
-    // Validate user type selected
     if (!formData.userType) {
       setErrors(['Please select a user type']);
       setLoading(false);
@@ -46,9 +45,9 @@ const Signup = () => {
     }
 
     try {
-      // Send only required fields to OTP API
+      
       const response = await axios.post(
-        'http://localhost:3009/api/verify-email/send-otp',
+        `${API_URL}/api/verify-email/send-otp`,
         {
           email: formData.email,
           firstName: formData.firstName,
@@ -60,7 +59,7 @@ const Signup = () => {
       );
 
       if (response.data.success) {
-        // Navigate to OTP verification page
+        
         navigate('/verify-email', {
           state: {
             email: formData.email,
@@ -87,7 +86,7 @@ const Signup = () => {
         <ErrorAlert errors={errors} />
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name Fields */}
+          {}
           <div className="flex gap-4">
             <div className="flex-1">
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
@@ -129,7 +128,7 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Email */}
+          {}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <div className="relative">
@@ -150,7 +149,7 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Password */}
+          {}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <div className="relative">
@@ -171,7 +170,7 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Confirm Password */}
+          {}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
             <div className="relative">
@@ -192,7 +191,7 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* User Type */}
+          {}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">I want to register as:</label>
             <div className="flex gap-4">
@@ -222,7 +221,7 @@ const Signup = () => {
             </div>
           </div>
 
-          {/* Terms */}
+          {}
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -238,7 +237,7 @@ const Signup = () => {
             </label>
           </div>
 
-          {/* Google Sign Up Button */}
+          {}
           <button
             type="button"
             onClick={() => alert('Google Sign-Up coming soon!')}
@@ -255,7 +254,7 @@ const Signup = () => {
 
           <div className="text-center text-gray-500">OR</div>
 
-          {/* Submit Button */}
+          {}
           <button
             type="submit"
             disabled={loading}

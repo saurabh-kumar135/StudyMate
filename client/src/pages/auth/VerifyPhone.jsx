@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import Navbar from '../../components/Navbar';
 import ErrorAlert from '../../components/ErrorAlert';
+import { API_URL } from '../../config/api';
 
 const VerifyPhone = () => {
   const location = useLocation();
@@ -36,7 +37,6 @@ const VerifyPhone = () => {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 5) {
       document.getElementById(`otp-${index + 1}`)?.focus();
     }
@@ -63,7 +63,7 @@ const VerifyPhone = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:3009/api/verify-phone/verify-otp',
+        `${API_URL}/api/verify-phone/verify-otp`,
         {
           phoneNumber,
           otp: otpCode
@@ -72,7 +72,7 @@ const VerifyPhone = () => {
       );
 
       if (response.data.success) {
-        // Redirect to home page after successful verification
+        
         navigate('/');
       } else {
         setErrors(response.data.errors || ['Verification failed']);
@@ -91,7 +91,7 @@ const VerifyPhone = () => {
 
     try {
       const response = await axios.post(
-        'http://localhost:3009/api/verify-phone/resend-otp',
+        `${API_URL}/api/verify-phone/resend-otp`,
         { phoneNumber },
         { withCredentials: true }
       );
@@ -129,7 +129,7 @@ const VerifyPhone = () => {
         <ErrorAlert errors={errors} />
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* OTP Input */}
+          {}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
               Enter 6-digit code
@@ -152,7 +152,7 @@ const VerifyPhone = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
+          {}
           <button
             type="submit"
             disabled={loading}
@@ -171,7 +171,7 @@ const VerifyPhone = () => {
             )}
           </button>
 
-          {/* Resend Code */}
+          {}
           <div className="text-center">
             <p className="text-sm text-gray-600 mb-2">
               Didn't receive the code?
@@ -192,7 +192,7 @@ const VerifyPhone = () => {
             )}
           </div>
 
-          {/* Back to Signup */}
+          {}
           <div className="text-center pt-4 border-t">
             <Link
               to="/signup"

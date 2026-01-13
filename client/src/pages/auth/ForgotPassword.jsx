@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
 import ErrorAlert from '../../components/ErrorAlert';
 import axios from 'axios';
+import { API_URL } from '../../config/api';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -17,7 +18,7 @@ const ForgotPassword = () => {
     setSuccess(false);
 
     try {
-      const response = await axios.post('http://localhost:3009/api/password-reset/request', 
+      const response = await axios.post(`${API_URL}/api/password-reset/request`, 
         { email },
         { withCredentials: true }
       );

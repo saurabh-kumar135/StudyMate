@@ -7,22 +7,22 @@ const GoogleAuthSuccess = () => {
   const { setUser } = useAuth();
 
   useEffect(() => {
-    // Fetch user data from backend after Google OAuth
+    
     const fetchUserData = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/auth/google/success', {
-          credentials: 'include' // Include cookies
+          credentials: 'include' 
         });
 
         const data = await response.json();
 
         if (data.success) {
-          // Update auth context with user data
+          
           setUser(data.user);
-          // Redirect to homepage
+          
           navigate('/');
         } else {
-          // Authentication failed
+          
           navigate('/login?error=google_auth_failed');
         }
       } catch (error) {

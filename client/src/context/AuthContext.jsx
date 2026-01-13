@@ -9,8 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check session on mount
-    // GET /api/check-session
+
     checkSessionStatus();
   }, []);
 

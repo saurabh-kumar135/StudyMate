@@ -3,36 +3,30 @@ const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 const bcrypt = require('bcryptjs');
 
-// Request password reset
 exports.requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      // Don't reveal if user exists or not (security)
+      
       return res.json({ 
         success: true, 
         message: 'If an account exists with that email, a password reset link has been sent.' 
       });
     }
 
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    
-    // Hash token before saving to database
+
     const hashedToken = crypto
       .createHash('sha256')
       .update(resetToken)
       .digest('hex');
 
-    // Save hashed token and expiry to user
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    user.resetPasswordExpires = Date.now() + 3600000; 
     await user.save();
 
-    // Send email with unhashed token
     const emailResult = await sendPasswordResetEmail(email, resetToken);
 
     if (!emailResult.success) {
@@ -56,18 +50,15 @@ exports.requestPasswordReset = async (req, res) => {
   }
 };
 
-// Validate reset token
 exports.validateResetToken = async (req, res) => {
   try {
     const { token } = req.params;
 
-    // Hash the token from URL
     const hashedToken = crypto
       .createHash('sha256')
       .update(token)
       .digest('hex');
 
-    // Find user with valid token
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() }
@@ -94,18 +85,15 @@ exports.validateResetToken = async (req, res) => {
   }
 };
 
-// Reset password
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    // Hash the token
     const hashedToken = crypto
       .createHash('sha256')
       .update(token)
       .digest('hex');
 
-    // Find user with valid token
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() }
@@ -118,10 +106,8 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset token
     user.password = hashedPassword;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;

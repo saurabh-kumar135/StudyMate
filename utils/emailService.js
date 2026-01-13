@@ -1,7 +1,6 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Create reusable transporter
 const createTransport = () => {
   return nodemailer.createTransport({
     service: 'gmail',
@@ -12,11 +11,9 @@ const createTransport = () => {
   });
 };
 
-// Send password reset email
 const sendPasswordResetEmail = async (email, resetToken) => {
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-  
-  // Check if Gmail credentials are configured
+
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.log('\n========================================');
     console.log('📧 PASSWORD RESET EMAIL (Console Mode)');
@@ -84,8 +81,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
     return { success: true };
   } catch (error) {
     console.error('❌ Error sending email:', error.message);
-    
-    // Fallback to console logging if email fails
+
     console.log('\n========================================');
     console.log('📧 PASSWORD RESET EMAIL (Fallback Mode)');
     console.log('========================================');

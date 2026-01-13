@@ -1,12 +1,10 @@
 const twilio = require('twilio');
 require('dotenv').config();
 
-// Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Create Twilio client
 const createTwilioClient = () => {
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
     return null;
@@ -18,9 +16,8 @@ const createTwilioClient = () => {
   );
 };
 
-// Send OTP via SMS
 const sendPhoneOTP = async (phoneNumber, otp, firstName) => {
-  // Check if Twilio is configured
+  
   if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
     console.log('\n========================================');
     console.log('📱 PHONE OTP (Console Mode)');
@@ -50,8 +47,7 @@ const sendPhoneOTP = async (phoneNumber, otp, firstName) => {
     return { success: true };
   } catch (error) {
     console.error('❌ Error sending SMS:', error.message);
-    
-    // Fallback to console logging if SMS fails
+
     console.log('\n========================================');
     console.log('📱 PHONE OTP (Fallback Mode)');
     console.log('========================================');

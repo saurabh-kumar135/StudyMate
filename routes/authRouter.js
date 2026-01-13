@@ -2,7 +2,6 @@
 const express = require("express");
 const authRouter = express.Router();
 
-// Local Module
 const authController = require("../controllers/authController");
 
 authRouter.get("/api/auth/login", authController.getLogin);

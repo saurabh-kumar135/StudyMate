@@ -1,11 +1,10 @@
 require('dotenv').config();
 
-// Import nodemailer properly
 let nodemailer;
 try {
   nodemailer = require('nodemailer');
   if (!nodemailer.createTransporter) {
-    // Try default export
+    
     nodemailer = nodemailer.default;
   }
 } catch (e) {
@@ -21,7 +20,6 @@ console.log('Gmail User:', process.env.GMAIL_USER);
 console.log('Password Set:', process.env.GMAIL_APP_PASSWORD ? 'YES' : 'NO');
 console.log('\n');
 
-// Simple SMTP test using raw nodemailer
 const testEmail = async () => {
   try {
     console.log('Creating transporter...');

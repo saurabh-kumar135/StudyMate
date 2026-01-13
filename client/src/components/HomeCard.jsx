@@ -1,20 +1,20 @@
 import { Link } from 'react-router-dom';
+import { getImageUrl } from '../config/api';
 
 const HomeCard = ({ home, showDetails, showFavourite, showRemoveFavourite, showEdit, showDelete, onAddFavourite, onRemoveFavourite, onDelete }) => {
-  // Handle both old 'photo' field and new 'photos' array
-  const getImageUrl = () => {
+  
+  const getHomeImageUrl = () => {
     if (home.photos && home.photos.length > 0) {
-      const firstPhoto = home.photos[0];
-      return firstPhoto.startsWith('http') ? firstPhoto : `http://localhost:3009/${firstPhoto}`;
+      return getImageUrl(home.photos[0]);
     }
-    // Fallback to old 'photo' field for backwards compatibility
+    
     if (home.photo) {
-      return home.photo.startsWith('http') ? home.photo : `http://localhost:3009/${home.photo}`;
+      return getImageUrl(home.photo);
     }
     return 'https://via.placeholder.com/400x300?text=No+Image';
   };
 
-  const imageUrl = getImageUrl();
+  const imageUrl = getHomeImageUrl();
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300 w-full max-w-sm">

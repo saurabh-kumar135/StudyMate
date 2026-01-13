@@ -1,10 +1,8 @@
 const mongoose = require('mongoose');
 const Home = require('./models/home');
 
-// MongoDB Atlas connection string
 const DB_PATH = process.env.MONGODB_URI || "mongodb://localhost:27017/havento";
 
-// Sample data for 15 homes with 4-5 relevant images each
 const sampleHomes = [
   {
     houseName: 'Luxury Beach Villa',
@@ -208,11 +206,10 @@ const sampleHomes = [
   }
 ];
 
-// Connect to MongoDB and seed data
 mongoose.connect(DB_PATH)
   .then(() => {
     console.log('Connected to MongoDB Atlas');
-    return Home.deleteMany({}); // Clear existing homes
+    return Home.deleteMany({}); 
   })
   .then(() => {
     console.log('Cleared existing homes');
