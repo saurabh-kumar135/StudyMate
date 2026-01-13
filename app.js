@@ -16,9 +16,7 @@ const hostRouter = require("./routes/hostRouter")
 const authRouter = require("./routes/authRouter")
 const passwordResetRouter = require("./routes/passwordResetRoutes")
 const emailVerificationRouter = require("./routes/emailVerificationRoutes")
-const phoneVerificationRouter = require("./routes/phoneVerificationRoutes")
-const googleAuthRouter = require("./routes/googleAuth")
-const passport = require('./config/passport'); 
+const phoneVerificationRouter = require("./routes/phoneVerificationRoutes") 
 const rootDir = require("./utils/pathUtil");
 const errorsController = require("./controllers/errors");
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -100,8 +98,7 @@ app.use(session({
   store
 }));
 
-app.use(passport.initialize());
-app.use(passport.session());
+
 
 app.use((req, res, next) => {
   req.isLoggedIn = req.session.isLoggedIn
@@ -114,7 +111,6 @@ app.use(authRouter);
 app.use('/api/password-reset', passwordResetRouter);
 app.use('/api/verify-email', emailVerificationRouter);
 app.use('/api/verify-phone', phoneVerificationRouter); 
-app.use('/api/auth', googleAuthRouter); 
 app.use(storeRouter);
 app.use(hostRouter);
 
