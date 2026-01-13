@@ -1,6 +1,6 @@
 const User = require('../models/user');
 const crypto = require('crypto');
-const { sendPasswordResetEmail } = require('../utils/emailService');
+const { sendPasswordResetEmail } = require('../utils/otpService');
 const bcrypt = require('bcryptjs');
 
 exports.requestPasswordReset = async (req, res) => {
