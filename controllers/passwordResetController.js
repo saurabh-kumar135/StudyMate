@@ -27,7 +27,7 @@ exports.requestPasswordReset = async (req, res) => {
     user.resetPasswordExpires = Date.now() + 3600000; 
     await user.save();
 
-    const emailResult = await sendPasswordResetEmail(email, resetToken);
+    const emailResult = await sendPasswordResetEmail(email, resetToken, user.firstName);
 
     if (!emailResult.success) {
       return res.status(500).json({
