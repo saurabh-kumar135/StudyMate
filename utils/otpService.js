@@ -71,7 +71,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
 };
 
 const sendPasswordResetEmail = async (email, resetToken, firstName) => {
-  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
   
   const mailOptions = {
     to: email,
