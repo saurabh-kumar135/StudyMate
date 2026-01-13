@@ -107,7 +107,6 @@ app.use((req, res, next) => {
 app.use('/api/', apiLimiter);
 
 app.get('/test-smtp', async (req, res) => {
-  const nodemailer = require('nodemailer');
   const transporter = nodemailer.createTransporter({
     service: 'gmail',
     auth: {
