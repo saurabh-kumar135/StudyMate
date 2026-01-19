@@ -325,17 +325,6 @@ VITE_API_URL=http://localhost:3009
 | Authentication | 5 requests   | 1 hour     | Prevent brute force |
 | General API    | 100 requests | 15 minutes | Prevent DDoS        |
 
-## 🛡️ Security Best Practices
-
-- ✅ Never commit `.env` files to Git
-- ✅ Use environment variables for all sensitive data
-- ✅ Keep dependencies updated
-- ✅ Use HTTPS in production
-- ✅ Implement rate limiting on all public endpoints
-- ✅ Validate and sanitize all user inputs
-- ✅ Use secure session configuration
-- ✅ Enable CORS only for trusted origins
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
