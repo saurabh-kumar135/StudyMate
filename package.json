@@ -1,17 +1,24 @@
 {
-  "name": "chapter-10---airbnb",
+  "name": "studymate-ai-platform",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "AI-Powered Study Platform with Google Gemini integration, smart material summarization, and personalized learning analytics",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saurabh-Kumar135/StudyMate.git"
+  },
+  "author": "Saurabh Kumar <saurabhrajput.25072005@gmail.com>",
+  "homepage": "https://github.com/saurabh-Kumar135/StudyMate#readme",
+  "bugs": {
+    "url": "https://github.com/saurabh-Kumar135/StudyMate/issues"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "tailwind": "tailwindcss -i ./views/input.css -o ./public/output.css --watch",
     "dev": "nodemon app.js & npm run tailwind",
     "start": "node app.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
   "devDependencies": {
     "autoprefixer": "^10.4.20",
     "nodemon": "^3.1.7",
@@ -19,6 +26,7 @@
     "tailwindcss": "^3.4.13"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.2",
     "body-parser": "^1.20.3",
     "connect-mongodb-session": "^5.0.0",
@@ -35,6 +43,7 @@
     "multer": "^1.4.5-lts.2",
     "mysql2": "^3.11.4",
     "nodemailer": "^6.9.8",
+    "pdf-parse": "^2.4.5",
     "resend": "^6.7.0"
   }
 }

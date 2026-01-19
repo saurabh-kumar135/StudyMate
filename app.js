@@ -9,13 +9,17 @@ const { default: mongoose } = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
 const helmet = require('helmet');
-const DB_PATH = process.env.MONGODB_URI || "mongodb://localhost:27017/havento";
+const DB_PATH = process.env.MONGODB_URI || "mongodb://localhost:27017/studymate";
 
 const storeRouter = require("./routes/storeRouter")
 const hostRouter = require("./routes/hostRouter")
 const authRouter = require("./routes/authRouter")
 const passwordResetRouter = require("./routes/passwordResetRoutes")
 const emailVerificationRouter = require("./routes/emailVerificationRoutes") 
+const aiRouter = require("./routes/aiRoutes") 
+const materialRouter = require("./routes/materialRoutes") 
+const statsRouter = require("./routes/statsRoutes")
+const notebookRouter = require("./routes/notebookRoutes")
 const rootDir = require("./utils/pathUtil");
 const errorsController = require("./controllers/errors");
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -52,10 +56,11 @@ app.use(cors({
   credentials: true
 }));
 
-const store = new MongoDBStore({
-  uri: DB_PATH,
-  collection: 'sessions'
-});
+// Temporarily using memory store instead of MongoDB for sessions
+// const store = new MongoDBStore({
+//   uri: DB_PATH,
+//   collection: 'sessions'
+// });
 
 const randomString = (length) => {
   const characters = 'abcdefghijklmnopqrstuvwxyz';
@@ -89,7 +94,7 @@ const multerOptions = {
 
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
-app.use(multer(multerOptions).array('photos', 5)); 
+// app.use(multer(multerOptions).array('photos', 5)); // Commented out - using route-specific multer
 app.use(express.static(path.join(rootDir, 'public')))
 app.use("/uploads", express.static(path.join(rootDir, 'uploads')))
 app.use("/host/uploads", express.static(path.join(rootDir, 'uploads')))
@@ -99,7 +104,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "KnowledgeGate AI with Complete Coding",
   resave: false,
   saveUninitialized: false,
-  store,
+  // store,  // Commented out - using memory store temporarily
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     httpOnly: true,
@@ -120,6 +125,10 @@ app.use('/api/', apiLimiter);
 app.use(authRouter);
 app.use('/api/password-reset', passwordResetRouter);
 app.use('/api/verify-email', emailVerificationRouter);
+app.use('/api/ai', aiRouter);
+app.use('/api/materials', materialRouter);
+app.use('/api/user', statsRouter);
+app.use('/api/notebooks', notebookRouter);
  
 app.use(storeRouter);
 app.use(hostRouter);

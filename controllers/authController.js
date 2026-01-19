@@ -43,16 +43,10 @@ exports.checkSession = (req, res, next) => {
 };
 
 exports.postSignup = [
-  check("firstName")
+  check("name")
   .trim()
   .isLength({min: 2})
-  .withMessage("First Name should be atleast 2 characters long")
-  .matches(/^[A-Za-z\s]+$/)
-  .withMessage("First Name should contain only alphabets"),
-
-  check("lastName")
-  .matches(/^[A-Za-z\s]*$/)
-  .withMessage("Last Name should contain only alphabets"),
+  .withMessage("Name should be atleast 2 characters long"),
 
   check("email")
   .isEmail()
@@ -60,71 +54,64 @@ exports.postSignup = [
   .normalizeEmail(),
 
   check("password")
-  .isLength({min: 8})
-  .withMessage("Password should be atleast 8 characters long")
-  .matches(/[A-Z]/)
-  .withMessage("Password should contain atleast one uppercase letter")
-  .matches(/[a-z]/)
-  .withMessage("Password should contain atleast one lowercase letter")
-  .matches(/[0-9]/)
-  .withMessage("Password should contain atleast one number")
-  .matches(/[!@&]/)
-  .withMessage("Password should contain atleast one special character")
+  .isLength({min: 6})
+  .withMessage("Password should be atleast 6 characters long")
   .trim(),
-
-  check("confirmPassword")
-  .trim()
-  .custom((value, {req}) => {
-    if (value !== req.body.password) {
-      throw new Error("Passwords do not match");
-    }
-    return true;
-  }),
-
-  check("userType")
-  .notEmpty()
-  .withMessage("Please select a user type")
-  .isIn(['guest', 'host'])
-  .withMessage("Invalid user type"),
-
-  check("terms")
-  .notEmpty()
-  .withMessage("Please accept the terms and conditions")
-  .custom((value, {req}) => {
-    if (value !== "on") {
-      throw new Error("Please accept the terms and conditions");
-    }
-    return true;
-  }),
   
-  (req, res, next) => {
-    const {firstName, lastName, email, password, userType} = req.body;
+  async (req, res, next) => {
+    const {name, email, password} = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(422).json({
         success: false,
+        error: errors.array()[0].msg,
         errors: errors.array().map(err => err.msg),
-        oldInput: {firstName, lastName, email, userType},
       });
     }
 
-    bcrypt.hash(password, 12)
-    .then(hashedPassword => {
-      const user = new User({firstName, lastName, email, password: hashedPassword, userType});
-      return user.save();
-    })
-    .then(() => {
+    try {
+      // Check if user already exists
+      const existingUser = await User.findOne({email});
+      if (existingUser) {
+        return res.status(422).json({
+          success: false,
+          error: "User with this email already exists",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 12);
+      const user = new User({
+        firstName: name.split(' ')[0] || name,
+        lastName: name.split(' ').slice(1).join(' ') || '',
+        email,
+        password: hashedPassword,
+        userType: 'guest'
+      });
+      
+      await user.save();
+
+      // Auto-login after signup
+      req.session.isLoggedIn = true;
+      req.session.user = user;
+      await req.session.save();
+
       res.status(201).json({
         success: true,
         message: "User created successfully",
+        user: {
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+        },
       });
-    }).catch(err => {
+    } catch (err) {
+      console.error('Signup error:', err);
       return res.status(422).json({
         success: false,
-        errors: [err.message],
-        oldInput: {firstName, lastName, email, userType},
+        error: err.message || "Signup failed. Please try again.",
       });
-    });
+    }
   }
 ]
 

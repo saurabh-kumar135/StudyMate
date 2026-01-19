@@ -1,8 +1,15 @@
-# HavenTo - Accommodation Booking Platform
+# StudyMate - AI-Powered Study Platform
 
-A production-ready full-stack web application for booking accommodations with enterprise-level security features. Built with Node.js, Express, MongoDB, and React.
+A production-ready full-stack web application that revolutionizes learning with AI-powered tutoring, smart material summarization, interactive quizzes, and personalized study analytics. Built with Node.js, Express, MongoDB, React, and Google Gemini AI.
 
 ## 🌟 Features
+
+### AI-Powered Learning
+
+- **AI Tutor**: Interactive chat with Google Gemini AI for personalized learning assistance
+- **Smart Summarization**: Upload study materials (PDF, DOCX, TXT) and get AI-generated summaries
+- **Quiz Generation**: Automatically generate quizzes from your study materials
+- **Intelligent Notebook**: AI-enhanced note-taking with smart suggestions
 
 ### User Authentication & Security
 
@@ -14,27 +21,22 @@ A production-ready full-stack web application for booking accommodations with en
 - **Security headers** with Helmet.js
 - **CORS protection** with environment-based origin validation
 
-### For Guests
+### Study Analytics & Gamification
 
-- Browse available properties
-- View detailed property information with image galleries
-- Add properties to favorites
-- Book accommodations
-- Manage bookings
-
-### For Hosts
-
-- List properties with multiple images
-- Edit and manage listings
-- Set pricing and availability
-- View booking requests
+- **Study Streak Tracking**: Monitor daily learning consistency
+- **Time Tracking**: Track total and weekly study time
+- **Progress Dashboard**: Visualize learning progress with charts
+- **Activity Metrics**: Track quizzes completed, materials reviewed, and AI conversations
+- **Personalized Insights**: Get AI-powered study recommendations
 
 ### Core Functionality
 
-- Image upload and management with Multer
-- Search and filter properties
+- Document upload and processing (PDF, DOCX, TXT)
+- Real-time AI chat interface
+- Interactive quiz system with instant feedback
+- Material library management
 - Responsive design for all devices
-- Real-time form validation
+- Dark/Light theme support
 - Environment-based configuration for development and production
 
 ## 🛠️ Tech Stack
@@ -44,9 +46,13 @@ A production-ready full-stack web application for booking accommodations with en
 - **Runtime**: Node.js
 - **Framework**: Express.js
 - **Database**: MongoDB with Mongoose ODM
+- **AI Integration**: Google Gemini AI API
 - **Authentication**: express-session with connect-mongodb-session
-- **Email**: Nodemailer (Gmail SMTP)
+- **Email**: Resend API for transactional emails
 - **File Upload**: Multer
+- **Document Processing**:
+  - pdf-parse for PDF files
+  - mammoth for DOCX files
 - **Security**:
   - bcryptjs for password hashing
   - express-rate-limit for DDoS protection
@@ -61,6 +67,7 @@ A production-ready full-stack web application for booking accommodations with en
 - **HTTP Client**: Axios
 - **Styling**: Tailwind CSS
 - **Icons**: Font Awesome
+- **Charts**: Recharts for analytics visualization
 
 ## 🔒 Security Features
 
@@ -111,15 +118,16 @@ A production-ready full-stack web application for booking accommodations with en
 
 - Node.js (v14 or higher)
 - MongoDB (local or Atlas)
-- Gmail account (for email functionality)
+- Google Gemini API Key
+- Resend API Key (for email functionality)
 
 ### Backend Setup
 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/student-cse-lab/HavenTo-Accommodation-Booking-Platform-.git
-cd HavenTo-Accommodation-Booking-Platform-
+git clone https://github.com/yourusername/StudyMate.git
+cd StudyMate
 ```
 
 2. Install backend dependencies:
@@ -131,9 +139,9 @@ npm install
 3. Create `.env` file in root directory:
 
 ```env
-MONGODB_URI=mongodb://localhost:27017/havento
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=your-app-password
+MONGODB_URI=mongodb://localhost:27017/studymate
+GEMINI_API_KEY=your-gemini-api-key
+RESEND_API_KEY=your-resend-api-key
 FRONTEND_URL=http://localhost:5173
 SESSION_SECRET=your-secret-key
 PORT=3009
@@ -187,9 +195,9 @@ Frontend will run on `http://localhost:5173`
 ### Backend (.env)
 
 ```env
-MONGODB_URI=mongodb://localhost:27017/havento
-GMAIL_USER=your-email@gmail.com
-GMAIL_APP_PASSWORD=your-gmail-app-password
+MONGODB_URI=mongodb://localhost:27017/studymate
+GEMINI_API_KEY=your-gemini-api-key
+RESEND_API_KEY=your-resend-api-key
 FRONTEND_URL=http://localhost:5173
 SESSION_SECRET=your-session-secret
 PORT=3009
@@ -202,13 +210,21 @@ NODE_ENV=development
 VITE_API_URL=http://localhost:3009
 ```
 
-### Getting Gmail App Password
+### Getting API Keys
 
-1. Enable 2-Factor Authentication on your Google account
-2. Go to Google Account Settings → Security
-3. Under "Signing in to Google", select "App passwords"
-4. Generate a new app password for "Mail"
-5. Use this password in `GMAIL_APP_PASSWORD`
+**Google Gemini API Key:**
+
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the API key and use it in `GEMINI_API_KEY`
+
+**Resend API Key:**
+
+1. Sign up at [Resend](https://resend.com)
+2. Go to API Keys section
+3. Create a new API key
+4. Copy the API key and use it in `RESEND_API_KEY`
 
 ## 📁 Project Structure
 
@@ -217,20 +233,39 @@ VITE_API_URL=http://localhost:3009
 │   ├── src/
 │   │   ├── components/        # Reusable components
 │   │   ├── config/            # API configuration
-│   │   ├── context/           # React Context (Auth)
+│   │   ├── context/           # React Context (Auth, Theme)
 │   │   ├── pages/             # Page components
+│   │   │   ├── auth/          # Authentication pages
+│   │   │   ├── Dashboard.jsx  # Main dashboard
+│   │   │   ├── AITutor.jsx    # AI chat interface
+│   │   │   ├── Materials.jsx  # Study materials
+│   │   │   └── Quiz.jsx       # Quiz interface
 │   │   ├── services/          # API services
 │   │   └── App.jsx            # Main app component
 │   ├── .env.example           # Frontend environment template
 │   └── package.json
 ├── controllers/               # Route controllers
+│   ├── authController.js      # Authentication logic
+│   ├── emailVerificationController.js
+│   ├── passwordResetController.js
+│   └── storeController.js
 ├── middleware/                # Custom middleware
 │   ├── rateLimiter.js        # DDoS protection
 │   └── auth.js               # Authentication middleware
 ├── models/                    # Mongoose models
+│   ├── user.js               # User model with stats
+│   └── notebook.js           # Notebook model
 ├── routes/                    # Express routes
+│   ├── authRouter.js
+│   ├── aiRoutes.js           # AI tutor endpoints
+│   ├── materialRoutes.js     # Material upload/summary
+│   ├── statsRoutes.js        # User analytics
+│   └── notebookRoutes.js     # Notebook CRUD
 ├── utils/                     # Utility functions
-├── uploads/                   # User uploaded images
+│   ├── geminiService.js      # Google Gemini integration
+│   ├── otpService.js         # Email OTP service
+│   └── otpStorage.js         # In-memory OTP storage
+├── uploads/                   # User uploaded documents
 ├── .env.example              # Backend environment template
 ├── .gitignore                # Git ignore rules
 ├── app.js                    # Express app setup
@@ -239,11 +274,13 @@ VITE_API_URL=http://localhost:3009
 
 ## 🚀 Usage
 
-1. **Sign Up**: Create an account as a Guest or Host
+1. **Sign Up**: Create an account with email verification
 2. **Verify Email**: Enter the OTP sent to your email
-3. **Browse Properties**: Explore available accommodations
-4. **Book**: Select dates and book a property (Guest)
-5. **List Property**: Add your property for booking (Host)
+3. **Dashboard**: View your study statistics and progress
+4. **AI Tutor**: Chat with AI for personalized learning help
+5. **Upload Materials**: Upload PDFs, DOCX, or TXT files for AI summarization
+6. **Take Quizzes**: Generate and take quizzes from your materials
+7. **Track Progress**: Monitor your study streaks and time spent learning
 
 ## 🌐 Deployment
 
@@ -251,30 +288,42 @@ VITE_API_URL=http://localhost:3009
 
 **Frontend**: Deploy to Vercel
 
-- Framework: Vite
-- Root Directory: `client`
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Environment Variable: `VITE_API_URL=https://your-backend-url.com`
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Configure build settings:
+   - Framework: Vite
+   - Root Directory: `client`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+4. Add environment variable:
+   - `VITE_API_URL=https://your-backend-url.onrender.com`
 
-**Backend**: Deploy to Render.com or AWS EC2
+**Backend**: Deploy to Render.com
 
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Environment Variables: See `.env.example`
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure settings:
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+   - Environment: Node
+4. Add environment variables (see `.env.example`)
+5. Deploy!
 
 **Database**: MongoDB Atlas (Cloud)
 
-For detailed deployment instructions, see `DEPLOYMENT_GUIDE.md`
+1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+2. Get your connection string
+3. Add it to `MONGODB_URI` in Render environment variables
+4. Whitelist Render's IP addresses (or use 0.0.0.0/0 for all IPs)
 
 ## 📊 Rate Limiting Details
 
-| Endpoint Type     | Limit        | Window     | Purpose             |
-| ----------------- | ------------ | ---------- | ------------------- |
-| OTP (Email/Phone) | 3 requests   | 15 minutes | Prevent email spam  |
-| Password Reset    | 3 requests   | 1 hour     | Prevent abuse       |
-| Authentication    | 5 requests   | 1 hour     | Prevent brute force |
-| General API       | 100 requests | 15 minutes | Prevent DDoS        |
+| Endpoint Type  | Limit        | Window     | Purpose             |
+| -------------- | ------------ | ---------- | ------------------- |
+| OTP (Email)    | 3 requests   | 15 minutes | Prevent email spam  |
+| Password Reset | 3 requests   | 1 hour     | Prevent abuse       |
+| Authentication | 5 requests   | 1 hour     | Prevent brute force |
+| General API    | 100 requests | 15 minutes | Prevent DDoS        |
 
 ## 🛡️ Security Best Practices
 
@@ -286,33 +335,6 @@ For detailed deployment instructions, see `DEPLOYMENT_GUIDE.md`
 - ✅ Validate and sanitize all user inputs
 - ✅ Use secure session configuration
 - ✅ Enable CORS only for trusted origins
-
-## 📸 Screenshots
-
-### Homepage
-
-![Homepage](screenshots/homepage.png)
-_Browse available properties with search and filter functionality_
-
-### Sign Up
-
-![Sign Up](screenshots/signup.png)
-_Create an account as a Guest or Host with email verification_
-
-### Email Verification
-
-![Email Verification](screenshots/email-verification.png)
-_Enter 6-digit OTP code sent to your email_
-
-### Login
-
-![Login](screenshots/login.png)
-_Secure login with session-based authentication_
-
-### Property Details
-
-![Property Details](screenshots/property-detail.png)
-_View detailed property information with image gallery_
 
 ## 🤝 Contributing
 
@@ -333,11 +355,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Saurabh Kumar**
 
 - Email: saurabhrajput.25072005@gmail.com
-- GitHub: [@student-cse-lab](https://github.com/student-cse-lab)
+- GitHub: [@saurabh-Kumar135](https://github.com/saurabh-Kumar135)
 
 ## 🙏 Acknowledgments
 
-- Inspired by Airbnb
+- Powered by Google Gemini AI
 - Built with modern web development best practices
 - Thanks to the open-source community for amazing tools and libraries
 
@@ -367,11 +389,24 @@ For support, email saurabhrajput.25072005@gmail.com or open an issue in the repo
 
 **Email Not Sending:**
 
-- Verify Gmail App Password is correct
-- Check `GMAIL_USER` and `GMAIL_APP_PASSWORD` in `.env`
-- Ensure 2FA is enabled on Gmail account
+- Verify Resend API Key is correct
+- Check `RESEND_API_KEY` in `.env`
+- Ensure you're using a verified domain (or use onboarding@resend.dev for testing)
+
+**AI Tutor Not Working:**
+
+- Verify Gemini API Key is correct
+- Check `GEMINI_API_KEY` in `.env`
+- Ensure you have API quota available
+
+**File Upload Issues:**
+
+- Check file size limits (default: 10MB)
+- Verify supported formats: PDF, DOCX, TXT
+- Ensure `uploads/` directory exists and has write permissions
 
 ---
 
-**Production Ready**: This application includes enterprise-level security features and is ready for production deployment with proper environment configuration.
-# Last updated: Tue Jan 13 05:42:07 PM IST 2026
+**Production Ready**: This application includes enterprise-level security features, AI integration, and is ready for production deployment with proper environment configuration.
+
+**Last updated**: January 19, 2026

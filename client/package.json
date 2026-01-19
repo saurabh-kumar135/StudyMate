@@ -1,8 +1,15 @@
 {
-  "name": "client",
+  "name": "studymate-client",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "StudyMate Frontend - React application with AI-powered learning features",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/saurabh-Kumar135/StudyMate.git"
+  },
+  "author": "Saurabh Kumar <saurabhrajput.25072005@gmail.com>",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,8 +19,10 @@
   "dependencies": {
     "@react-oauth/google": "^0.13.4",
     "axios": "^1.13.2",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.12.0"
   },
   "devDependencies": {

@@ -136,14 +136,14 @@ const VerifyEmail = () => {
       <Navbar currentPage="signup" />
       <main className="container mx-auto mt-8 p-8 bg-white rounded-lg shadow-md max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-block p-4 bg-purple-100 rounded-full mb-4">
-            <i className="fas fa-envelope-open-text text-purple-500 text-3xl"></i>
+          <div className="inline-block p-4 bg-teal-100 rounded-full mb-4">
+            <i className="fas fa-envelope-open-text text-teal-500 text-3xl"></i>
           </div>
           <h1 className="text-3xl font-bold text-gray-800">Verify Your Email</h1>
           <p className="text-gray-600 mt-2">
             We've sent a 6-digit code to
           </p>
-          <p className="text-purple-600 font-semibold">{email}</p>
+          <p className="text-teal-600 font-semibold">{email}</p>
         </div>
 
         <ErrorAlert errors={errors} />
@@ -162,7 +162,7 @@ const VerifyEmail = () => {
                 value={digit}
                 onChange={(e) => handleChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+                className="w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition"
                 disabled={loading}
               />
             ))}
@@ -173,7 +173,7 @@ const VerifyEmail = () => {
           {timeLeft > 0 ? (
             <p className="text-gray-600">
               Code expires in{' '}
-              <span className="font-semibold text-purple-600">{formatTime(timeLeft)}</span>
+              <span className="font-semibold text-teal-600">{formatTime(timeLeft)}</span>
             </p>
           ) : (
             <p className="text-red-500 font-semibold">Code expired!</p>
@@ -183,7 +183,7 @@ const VerifyEmail = () => {
         <button
           onClick={() => handleVerify()}
           disabled={loading || otp.some((d) => !d)}
-          className="w-full bg-purple-500 text-white py-3 rounded-md hover:bg-purple-600 focus:ring-4 focus:ring-purple-300 font-medium transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mb-4"
+          className="w-full bg-teal-500 text-white py-3 rounded-md hover:bg-teal-600 focus:ring-4 focus:ring-purple-300 font-medium transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mb-4"
         >
           {loading ? (
             <>
@@ -203,7 +203,7 @@ const VerifyEmail = () => {
             <button
               onClick={handleResend}
               disabled={loading}
-              className="text-purple-500 hover:underline font-medium"
+              className="text-teal-500 hover:underline font-medium"
             >
               <i className="fas fa-redo mr-2"></i>
               Resend Code
