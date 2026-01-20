@@ -39,7 +39,34 @@ A production-ready full-stack web application that revolutionizes learning with 
 - Dark/Light theme support
 - Environment-based configuration for development and production
 
-## 🛠️ Tech Stack
+## � Screenshots
+
+### Homepage
+
+![Homepage](screenshots/homepage.png)
+_Landing page with AI-powered study features_
+
+### Sign Up
+
+![Sign Up](screenshots/signup.png)
+_User registration with email verification_
+
+### Dashboard
+
+![Dashboard](screenshots/dashboard.png)
+_Personalized dashboard with study analytics and progress tracking_
+
+### AI Tutor
+
+![AI Tutor](screenshots/ai-tutor.png)
+_Interactive AI chat for personalized learning assistance_
+
+### Study Materials
+
+![Study Materials](screenshots/study-materials.png)
+_Upload and summarize study materials with AI_
+
+## �🛠️ Tech Stack
 
 ### Backend
 
