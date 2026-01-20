@@ -66,7 +66,17 @@ _Interactive AI chat for personalized learning assistance_
 ![Study Materials](screenshots/study-materials.png)
 _Upload and summarize study materials with AI_
 
-## �🛠️ Tech Stack
+### AI Tutor Conversation
+
+![AI Tutor Conversation](screenshots/ai-tutor-conversation.png)
+_Deep learning explanation with detailed AI responses_
+
+### Study Materials Summary
+
+![Study Materials Summary](screenshots/study-materials-summary.png)
+_AI-generated summary of uploaded documents_
+
+## 🛠️ Tech Stack
 
 ### Backend
 
