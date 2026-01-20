@@ -7,7 +7,7 @@ setInterval(() => {
   for (const [email, data] of pendingVerifications.entries()) {
     if (now > data.expiresAt) {
       pendingVerifications.delete(email);
-      console.log(`🗑️  Cleaned up expired OTP for ${email}`);
+      console.log(`Cleaned up expired OTP for ${email}`);
     }
   }
 }, 10 * 60 * 1000); 
@@ -18,7 +18,7 @@ const storePendingVerification = (email, userData, otp, expiresAt) => {
     otp,
     expiresAt
   });
-  console.log(`💾 Stored pending verification for ${email}`);
+  console.log(`Stored pending verification for ${email}`);
 };
 
 const getPendingVerification = (email) => {
@@ -27,7 +27,7 @@ const getPendingVerification = (email) => {
 
 const removePendingVerification = (email) => {
   pendingVerifications.delete(email);
-  console.log(`✅ Removed pending verification for ${email}`);
+  console.log(`Removed pending verification for ${email}`);
 };
 
 module.exports = {

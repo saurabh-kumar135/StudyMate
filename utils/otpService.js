@@ -48,10 +48,10 @@ const sendOTPEmail = async (email, otp, firstName) => {
 
   try {
     const data = await resend.emails.send(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${email}`, data);
+    console.log(`OTP email sent successfully to ${email}`, data);
     return { success: true };
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error.message);
+    console.error('Error sending OTP email:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -109,10 +109,10 @@ const sendPasswordResetEmail = async (email, resetToken, firstName) => {
 
   try {
     const data = await resend.emails.send(mailOptions);
-    console.log(`✅ Password reset email sent successfully to ${email}`, data);
+    console.log(`Password reset email sent successfully to ${email}`, data);
     return { success: true };
   } catch (error) {
-    console.error('❌ Error sending password reset email:', error.message);
+    console.error('Error sending password reset email:', error.message);
     return { success: false, error: error.message };
   }
 };

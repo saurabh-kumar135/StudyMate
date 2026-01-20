@@ -21,7 +21,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
     console.log(`To: ${email}`);
     console.log(`Subject: Password Reset Request`);
     console.log(`\nReset Link: ${resetUrl}`);
-    console.log('\n⚠️  Gmail not configured - Link printed to console for testing');
+    console.log('\n  Gmail not configured - Link printed to console for testing');
     console.log('To enable email sending, add Gmail credentials to .env file');
     console.log('========================================\n');
     
@@ -50,7 +50,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🔐 Password Reset Request</h1>
+            <h1>Password Reset Request</h1>
           </div>
           <div class="content">
             <p>Hello,</p>
@@ -77,17 +77,17 @@ const sendPasswordResetEmail = async (email, resetToken) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Password reset email sent to ${email}`);
+    console.log(`Password reset email sent to ${email}`);
     return { success: true };
   } catch (error) {
-    console.error('❌ Error sending email:', error.message);
+    console.error('Error sending email:', error.message);
 
     console.log('\n========================================');
     console.log('📧 PASSWORD RESET EMAIL (Fallback Mode)');
     console.log('========================================');
     console.log(`To: ${email}`);
     console.log(`Reset Link: ${resetUrl}`);
-    console.log('\n⚠️  Email sending failed - Link printed to console');
+    console.log('\n  Email sending failed - Link printed to console');
     console.log(`Error: ${error.message}`);
     console.log('========================================\n');
     
