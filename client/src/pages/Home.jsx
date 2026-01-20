@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
-import { GraduationCap, Upload, Sparkles, FileText, Brain } from 'lucide-react';
+import { GraduationCap, Upload, Sparkles, FileText, Brain, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Home() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <header style={{ position: 'fixed', top: 0, left: 0, right: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', zIndex: 50 }}>
@@ -10,7 +13,29 @@ export default function Home() {
             <GraduationCap style={{ width: '40px', height: '40px', color: 'var(--text-primary)' }} />
             <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)' }}>StudyMate</span>
           </div>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button
+              onClick={toggleTheme}
+              style={{ 
+                padding: '8px', 
+                backgroundColor: 'transparent', 
+                border: '2px solid var(--border-color)', 
+                borderRadius: '50%', 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px'
+              }}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            >
+              {theme === 'light' ? (
+                <Moon style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
+              ) : (
+                <Sun style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
+              )}
+            </button>
             <Link to="/signup" style={{ padding: '12px 32px', backgroundColor: 'transparent', color: 'var(--text-primary)', border: '2px solid var(--text-primary)', borderRadius: '9999px', fontSize: '18px', fontWeight: '600', textDecoration: 'none', display: 'inline-block' }}>
               Sign Up
             </Link>
