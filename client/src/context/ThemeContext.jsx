@@ -12,6 +12,12 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
+    const themeVersion = localStorage.getItem('studymate-theme-version');
+    if (themeVersion !== '2.0') {
+      localStorage.setItem('studymate-theme', 'light');
+      localStorage.setItem('studymate-theme-version', '2.0');
+      return 'light';
+    }
     const savedTheme = localStorage.getItem('studymate-theme');
     return savedTheme || 'light';
   });
