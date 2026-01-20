@@ -12,9 +12,8 @@ export const useTheme = () => {
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    // Load theme from localStorage or default to 'dark'
     const savedTheme = localStorage.getItem('studymate-theme');
-    return savedTheme || 'dark';
+    return savedTheme || 'light';
   });
 
   useEffect(() => {
