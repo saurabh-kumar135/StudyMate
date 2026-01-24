@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/user');
 
-// Middleware to check if user is logged in
+
 const requireAuth = (req, res, next) => {
   if (!req.session.isLoggedIn || !req.session.user) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
@@ -224,7 +224,6 @@ router.post('/increment-conversation', requireAuth, async (req, res) => {
   }
 });
 
-// Helper function to calculate streak
 function calculateStreak(activityDates) {
   if (!activityDates || activityDates.length === 0) return 0;
 

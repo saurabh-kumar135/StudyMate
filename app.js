@@ -1,4 +1,3 @@
-// Core Module
 const path = require('path');
 require('dotenv').config();
 
@@ -26,7 +25,6 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
-// Trust proxy - required for Render deployment
 app.set('trust proxy', 1);
 
 
@@ -56,11 +54,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Temporarily using memory store instead of MongoDB for sessions
-// const store = new MongoDBStore({
-//   uri: DB_PATH,
-//   collection: 'sessions'
-// });
+
 
 const randomString = (length) => {
   const characters = 'abcdefghijklmnopqrstuvwxyz';
@@ -94,7 +88,7 @@ const multerOptions = {
 
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
-// app.use(multer(multerOptions).array('photos', 5)); // Commented out - using route-specific multer
+
 app.use(express.static(path.join(rootDir, 'public')))
 app.use("/uploads", express.static(path.join(rootDir, 'uploads')))
 app.use("/host/uploads", express.static(path.join(rootDir, 'uploads')))
@@ -104,12 +98,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "KnowledgeGate AI with Complete Coding",
   resave: false,
   saveUninitialized: false,
-  // store,  // Commented out - using memory store temporarily
+
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // 'none' for cross-origin
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 

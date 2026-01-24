@@ -68,14 +68,11 @@ const userSchema = mongoose.Schema({
   emailVerificationOTP: String,
   emailVerificationExpires: Date,
   
-  // User Statistics
   stats: {
-    // Time spent on platform (in minutes)
     totalTimeMinutes: {
       type: Number,
       default: 0
     },
-    // Weekly time tracking
     weeklyTimeMinutes: {
       type: Number,
       default: 0
@@ -84,7 +81,6 @@ const userSchema = mongoose.Schema({
       type: Date,
       default: Date.now
     },
-    // Daily activity for streak calculation
     activityDates: [{
       type: Date
     }],
@@ -92,22 +88,18 @@ const userSchema = mongoose.Schema({
       type: Number,
       default: 0
     },
-    // Quizzes completed
     quizzesCompleted: {
       type: Number,
       default: 0
     },
-    // Materials reviewed (summarized)
     materialsReviewed: {
       type: Number,
       default: 0
     },
-    // AI conversations count
     aiConversations: {
       type: Number,
       default: 0
     },
-    // Last activity timestamp
     lastActivityAt: {
       type: Date,
       default: Date.now
