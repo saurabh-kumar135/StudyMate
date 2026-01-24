@@ -1,7 +1,3 @@
-/**
- * Test Gemini AI Integration
- * Run this to verify Gemini API is working
- */
 
 require('dotenv').config();
 const { chatWithAI, summarizeText, generateQuiz, explainConcept } = require('./utils/geminiService');
@@ -11,7 +7,6 @@ console.log('STUDYMATE - GEMINI AI TEST');
 console.log('='.repeat(70));
 
 async function testAI() {
-  // Check if API key is set
   if (!process.env.GEMINI_API_KEY) {
     console.error('\n❌ ERROR: GEMINI_API_KEY not found in .env file!');
     console.log('\n📝 To fix this:');
@@ -23,7 +18,6 @@ async function testAI() {
 
   console.log('\n✅ API Key found!\n');
 
-  // Test 1: AI Chat
   console.log('Test 1: AI Tutor Chat');
   console.log('-'.repeat(70));
   const chatResult = await chatWithAI('What is photosynthesis?');
@@ -34,7 +28,6 @@ async function testAI() {
     console.log('❌ Chat failed:', chatResult.error, '\n');
   }
 
-  // Test 2: Summarization
   console.log('Test 2: Text Summarization');
   console.log('-'.repeat(70));
   const longText = `Photosynthesis is a process used by plants and other organisms to convert 
@@ -50,7 +43,6 @@ as sugars and starches, which are synthesized from carbon dioxide and water.`;
     console.log('❌ Summarization failed:', summaryResult.error, '\n');
   }
 
-  // Test 3: Quiz Generation
   console.log('Test 3: Quiz Generation');
   console.log('-'.repeat(70));
   const quizResult = await generateQuiz('Photosynthesis', 2, 'easy');
@@ -62,7 +54,6 @@ as sugars and starches, which are synthesized from carbon dioxide and water.`;
     console.log('❌ Quiz generation failed:', quizResult.error, '\n');
   }
 
-  // Test 4: Concept Explanation
   console.log('Test 4: Concept Explanation');
   console.log('-'.repeat(70));
   const explainResult = await explainConcept('Mitochondria', 'beginner');

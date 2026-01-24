@@ -1,7 +1,3 @@
-/**
- * List Available Gemini Models
- * This will show which models your API key can access
- */
 
 require('dotenv').config();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -12,7 +8,6 @@ async function listModels() {
   try {
     console.log('Fetching available models...\n');
     
-    // Try to list models using the API
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`
     );

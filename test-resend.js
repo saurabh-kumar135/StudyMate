@@ -3,7 +3,6 @@ const { Resend } = require('resend');
 
 console.log('🔍 Testing Resend API Key...\n');
 
-// Check if API key exists
 if (!process.env.RESEND_API_KEY) {
   console.error('❌ RESEND_API_KEY not found in .env file!');
   process.exit(1);
@@ -11,10 +10,8 @@ if (!process.env.RESEND_API_KEY) {
 
 console.log('✅ API Key found:', process.env.RESEND_API_KEY.substring(0, 10) + '...');
 
-// Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Test sending email
 async function testEmail() {
   try {
     console.log('\n📧 Attempting to send test email...\n');
