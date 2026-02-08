@@ -11,8 +11,21 @@ exports.sendOTP = async (req, res) => {
   try {
     const { email, firstName, lastName, password, userType } = req.body;
 
+    console.log('📧 Signup attempt for:', email);
+    console.log('📝 User data:', { firstName, lastName, userType });
+
+    // Validate required fields
+    if (!email || !firstName || !password || !userType) {
+      console.log('❌ Missing required fields');
+      return res.status(400).json({
+        success: false,
+        errors: ['All fields are required']
+      });
+    }
+
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.emailVerified) {
+      console.log('❌ Email already registered:', email);
       return res.status(400).json({
         success: false,
         errors: ['Email already registered']
@@ -22,8 +35,10 @@ exports.sendOTP = async (req, res) => {
     const otp = generateOTP();
     const otpExpires = Date.now() + 5 * 60 * 1000; 
 
+    console.log('🔐 Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    console.log('💾 Storing pending verification...');
     storePendingVerification(email, {
       firstName,
       lastName,
@@ -31,27 +46,32 @@ exports.sendOTP = async (req, res) => {
       userType
     }, otp, otpExpires);
 
+    console.log('📨 Attempting to send OTP email to:', email);
+    console.log('🔑 RESEND_API_KEY exists:', !!process.env.RESEND_API_KEY);
+    
     const emailResult = await sendOTPEmail(email, otp, firstName);
 
     if (!emailResult.success) {
-      
+      console.log('❌ Email sending failed:', emailResult.error);
       removePendingVerification(email);
       return res.status(500).json({
         success: false,
-        errors: ['Failed to send verification email. Please try again.']
+        errors: [`Failed to send verification email: ${emailResult.error || 'Unknown error'}`]
       });
     }
 
+    console.log('✅ OTP email sent successfully to:', email);
     res.json({
       success: true,
       message: 'Verification code sent to your email!'
     });
 
   } catch (error) {
-    console.error('Send OTP error:', error);
+    console.error('❌ Send OTP error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      errors: ['An error occurred. Please try again.']
+      errors: [error.message || 'An error occurred. Please try again.']
     });
   }
 };

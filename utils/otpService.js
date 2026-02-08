@@ -9,6 +9,15 @@ const generateOTP = () => {
 };
 
 const sendOTPEmail = async (email, otp, firstName) => {
+  // Check if API key is configured
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY is not configured!');
+    return { 
+      success: false, 
+      error: 'Email service not configured. Please contact administrator.' 
+    };
+  }
+
   const mailOptions = {
     from: 'HavenTo <onboarding@resend.dev>', // Resend's test email for free tier
     to: email,
@@ -47,11 +56,17 @@ const sendOTPEmail = async (email, otp, firstName) => {
   };
 
   try {
+    console.log('📤 Sending email via Resend API...');
     const data = await resend.emails.send(mailOptions);
-    console.log(`OTP email sent successfully to ${email}`, data);
+    console.log(`✅ OTP email sent successfully to ${email}`, data);
     return { success: true };
   } catch (error) {
-    console.error('Error sending OTP email:', error.message);
+    console.error('❌ Error sending OTP email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      statusCode: error.statusCode,
+      name: error.name
+    });
     return { success: false, error: error.message };
   }
 };
