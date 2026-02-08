@@ -43,18 +43,31 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('✅ CORS: Allowing request with no origin');
+      return callback(null, true);
+    }
     
     // Allow any vercel.app domain
     if (origin && origin.includes('.vercel.app')) {
+      console.log('✅ CORS: Allowing Vercel domain:', origin);
+      return callback(null, true);
+    }
+    
+    // Allow any render.com domain (for testing backend directly)
+    if (origin && origin.includes('.onrender.com')) {
+      console.log('✅ CORS: Allowing Render domain:', origin);
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
+      console.log('✅ CORS: Allowing whitelisted origin:', origin);
       callback(null, true);
     } else {
-      console.log('CORS Error - Origin not allowed:', origin);
-      console.log('Allowed origins:', allowedOrigins);
+      console.log('❌ CORS Error - Origin not allowed:', origin);
+      console.log('📋 Allowed origins:', allowedOrigins);
+      console.log('💡 Add this origin to FRONTEND_URL env variable or allowedOrigins array');
       callback(new Error('Not allowed by CORS'));
     }
   },
