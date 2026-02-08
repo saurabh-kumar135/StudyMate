@@ -45,9 +45,16 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     
+    // Allow any vercel.app domain
+    if (origin && origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('CORS Error - Origin not allowed:', origin);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
