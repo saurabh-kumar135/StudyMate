@@ -23,6 +23,12 @@ GEMINI_API_KEY=your-gemini-api-key
 RESEND_API_KEY=your-resend-api-key
 ```
 
+> **⚠️ CRITICAL: RESEND_API_KEY is REQUIRED!**
+>
+> Without `RESEND_API_KEY`, signup will fail with "Signup failed. Please try again" because the verification email cannot be sent.
+>
+> Get your Resend API key from: https://resend.com/api-keys
+
 **IMPORTANT**: Replace `https://your-actual-frontend-url.vercel.app` with your ACTUAL Vercel deployment URL (e.g., `https://studymate-abc123.vercel.app`)
 
 ### Step 2: Verify CORS Configuration
