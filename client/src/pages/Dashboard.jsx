@@ -43,6 +43,18 @@ export default function Dashboard() {
   const [recentNotebooks, setRecentNotebooks] = useState([]);
   const [featuredNotebooks, setFeaturedNotebooks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+  const [isTablet, setIsTablet] = useState(window.innerWidth > 640 && window.innerWidth <= 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+      setIsTablet(window.innerWidth > 640 && window.innerWidth <= 1024);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,17 +138,17 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)', padding: '32px 24px', paddingTop: '96px', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)', padding: isMobile ? '16px 12px' : (isTablet ? '24px 16px' : '32px 24px'), paddingTop: isMobile ? '80px' : '96px', boxSizing: 'border-box' }}>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>
+      <div style={{ marginBottom: isMobile ? '24px' : '32px' }}>
+        <h1 style={{ fontSize: isMobile ? '24px' : (isTablet ? '30px' : '36px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>
           Welcome back{user?.firstName ? `, ${user.firstName}` : ''}! 👋
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>Here's your study progress</p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: isMobile ? '14px' : '18px' }}>Here's your study progress</p>
       </div>
 
       {/* Stats Grid - 4 columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'), gap: isMobile ? '16px' : '20px', marginBottom: isMobile ? '32px' : '40px' }}>
         <div style={cardStyle}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div style={{ width: '56px', height: '56px', backgroundColor: 'rgba(249, 115, 22, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -183,12 +195,12 @@ export default function Dashboard() {
       </div>
 
       {/* Featured Notebooks */}
-      <div style={{ marginBottom: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)' }}>Featured notebooks</h2>
+      <div style={{ marginBottom: isMobile ? '32px' : '40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: isMobile ? '16px' : '20px' }}>
+          <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)' }}>Featured notebooks</h2>
           <button style={{ color: 'var(--text-secondary)', fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}>See all →</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
           {featuredNotebooks.length > 0 ? (
             featuredNotebooks.slice(0, 3).map((notebook) => (
               <Link key={notebook._id} to={`/app/notebook/${notebook._id}`} style={{ ...cardStyle, textDecoration: 'none', display: 'block' }}>
@@ -214,9 +226,9 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Notebooks */}
-      <div style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '20px' }}>Recent notebooks</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+      <div style={{ marginBottom: isMobile ? '32px' : '40px' }}>
+        <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Recent notebooks</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
           <Link to="/app/materials" style={{ ...cardStyle, border: '2px dashed #444', textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
             <div style={{ width: '72px', height: '72px', backgroundColor: 'var(--bg-card)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
               <Plus style={{ width: '36px', height: '36px', color: 'var(--text-secondary)' }} />
@@ -244,8 +256,8 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div>
-        <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '20px' }}>Quick Actions</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+        <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Quick Actions</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
           <Link to="/app/ai-tutor" style={{ ...cardStyle, textDecoration: 'none' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #f97316, #ef4444)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

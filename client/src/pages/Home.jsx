@@ -1,17 +1,30 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { GraduationCap, Upload, Sparkles, FileText, Brain, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+  const [isTablet, setIsTablet] = useState(window.innerWidth > 640 && window.innerWidth <= 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+      setIsTablet(window.innerWidth > 640 && window.innerWidth <= 1024);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
       <header style={{ position: 'fixed', top: 0, left: 0, right: 0, backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', zIndex: 50 }}>
-        <div style={{ width: '100%', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <GraduationCap style={{ width: '40px', height: '40px', color: 'var(--text-primary)' }} />
-            <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)' }}>StudyMate</span>
+        <div style={{ width: '100%', padding: isMobile ? '12px 16px' : '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px' }}>
+            <GraduationCap style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', color: 'var(--text-primary)' }} />
+            <span style={{ fontSize: isMobile ? '20px' : '28px', fontWeight: 'bold', color: 'var(--text-primary)' }}>StudyMate</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button
@@ -36,23 +49,23 @@ export default function Home() {
                 <Sun style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
               )}
             </button>
-            <Link to="/signup" style={{ padding: '12px 32px', backgroundColor: 'transparent', color: 'var(--text-primary)', border: '2px solid var(--text-primary)', borderRadius: '9999px', fontSize: '18px', fontWeight: '600', textDecoration: 'none', display: 'inline-block' }}>
+            <Link to="/signup" style={{ padding: isMobile ? '8px 20px' : '12px 32px', backgroundColor: 'transparent', color: 'var(--text-primary)', border: '2px solid var(--text-primary)', borderRadius: '9999px', fontSize: isMobile ? '14px' : '18px', fontWeight: '600', textDecoration: 'none', display: 'inline-block' }}>
               Sign Up
             </Link>
           </div>
         </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 24px', paddingTop: '80px' }}>
-        <div style={{ textAlign: 'center', padding: '96px 0' }}>
-          <h1 style={{ fontSize: '72px', fontWeight: 'bold', marginBottom: '32px', lineHeight: '1.1' }}>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: isMobile ? '0 16px' : '0 24px', paddingTop: isMobile ? '64px' : '80px' }}>
+        <div style={{ textAlign: 'center', padding: isMobile ? '48px 0' : (isTablet ? '72px 0' : '96px 0') }}>
+          <h1 style={{ fontSize: isMobile ? '36px' : (isTablet ? '56px' : '72px'), fontWeight: 'bold', marginBottom: isMobile ? '20px' : '32px', lineHeight: '1.1' }}>
             <span style={{ color: 'var(--text-primary)' }}>STUDY SMART </span>
             <span style={{ background: 'linear-gradient(to right, #3b82f6, #06b6d4, #22c55e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               WITH AI
             </span>
           </h1>
           
-          <p style={{ color: 'var(--text-secondary)', fontSize: '22px', marginBottom: '40px', maxWidth: '700px', margin: '0 auto 40px', lineHeight: '1.6' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: isMobile ? '16px' : (isTablet ? '18px' : '22px'), marginBottom: isMobile ? '24px' : '40px', maxWidth: '700px', margin: isMobile ? '0 auto 24px' : '0 auto 40px', lineHeight: '1.6' }}>
             Your research and thinking partner, grounded in the information you trust, built with the latest Gemini models.
           </p>
 
@@ -64,10 +77,10 @@ export default function Home() {
           </Link>
         </div>
 
-        <div style={{ padding: '80px 0' }}>
-          <h2 style={{ fontSize: '42px', fontWeight: 'bold', textAlign: 'center', marginBottom: '64px', color: 'var(--text-primary)' }}>Your AI-Powered Study Partner</h2>
+        <div style={{ padding: isMobile ? '40px 0' : (isTablet ? '60px 0' : '80px 0') }}>
+          <h2 style={{ fontSize: isMobile ? '28px' : (isTablet ? '36px' : '42px'), fontWeight: 'bold', textAlign: 'center', marginBottom: isMobile ? '32px' : (isTablet ? '48px' : '64px'), color: 'var(--text-primary)' }}>Your AI-Powered Study Partner</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '48px', maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '32px' : '48px', maxWidth: '1000px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ width: '80px', height: '80px', backgroundColor: 'var(--bg-secondary)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', border: '1px solid var(--border-color)' }}>
                 <Upload style={{ width: '40px', height: '40px', color: 'var(--text-secondary)' }} />
@@ -100,7 +113,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ padding: '80px 0', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ padding: isMobile ? '40px 0' : (isTablet ? '60px 0' : '80px 0'), display: 'flex', justifyContent: 'center' }}>
           <div style={{ position: 'relative' }}>
             <div style={{ width: '100%', maxWidth: '900px', background: 'var(--bg-secondary)', borderRadius: '24px', padding: '40px', boxShadow: '0 25px 50px -12px var(--shadow)', border: '1px solid var(--border-color)' }}>
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', padding: '32px', border: '1px solid var(--border-color)' }}>
@@ -127,9 +140,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div style={{ padding: '96px 0', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '32px', color: 'var(--text-primary)' }}>Ready to study smarter?</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '22px', marginBottom: '40px', lineHeight: '1.6' }}>
+        <div style={{ padding: isMobile ? '48px 0' : (isTablet ? '72px 0' : '96px 0'), textAlign: 'center' }}>
+          <h2 style={{ fontSize: isMobile ? '32px' : (isTablet ? '40px' : '48px'), fontWeight: 'bold', marginBottom: isMobile ? '20px' : '32px', color: 'var(--text-primary)' }}>Ready to study smarter?</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: isMobile ? '16px' : (isTablet ? '18px' : '22px'), marginBottom: isMobile ? '24px' : '40px', lineHeight: '1.6' }}>
             Join thousands of students using AI to accelerate their learning
           </p>
           <Link
