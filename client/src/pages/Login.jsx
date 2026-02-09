@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, Lock, LogIn, Chrome } from 'lucide-react';
@@ -13,6 +13,16 @@ export default function Login() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -64,7 +74,7 @@ export default function Login() {
         backgroundColor: 'var(--bg-secondary)',
         border: '2px solid #3b82f6',
         borderRadius: '16px',
-        padding: '40px 32px',
+        padding: isMobile ? '24px 16px' : '40px 32px',
         boxShadow: '0 10px 25px rgba(59, 130, 246, 0.1)'
       }}>
         <h1 style={{ 

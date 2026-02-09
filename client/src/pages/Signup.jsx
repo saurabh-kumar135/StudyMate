@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { User, Mail, Lock, UserPlus, Chrome } from 'lucide-react';
@@ -18,6 +18,16 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 640);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -86,7 +96,7 @@ export default function Signup() {
         backgroundColor: 'var(--bg-secondary)',
         border: '2px solid #3b82f6',
         borderRadius: '16px',
-        padding: '40px 32px',
+        padding: isMobile ? '24px 16px' : '40px 32px',
         boxShadow: '0 10px 25px rgba(59, 130, 246, 0.1)'
       }}>
         <h1 style={{ 
@@ -115,9 +125,14 @@ export default function Signup() {
 
         <form onSubmit={handleSubmit}>
           {/* First Name and Last Name */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', 
+            gap: '16px', 
+            marginBottom: '20px' 
+          }}>
             <div>
-              <label style={{ display: 'block', fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '8px' }}>
                 First Name
               </label>
               <div style={{ position: 'relative' }}>
@@ -143,7 +158,7 @@ export default function Signup() {
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '16px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '8px' }}>
                 Last Name
               </label>
               <div style={{ position: 'relative' }}>
