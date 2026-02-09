@@ -31,11 +31,47 @@ body {
   margin: 0;
   padding: 0;
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Mobile browser fixes */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  /* Prevent zoom on input focus (iOS) */
+  font-size: 16px;
+}
+
+/* Mobile viewport fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS specific fixes */
+  body {
+    min-height: -webkit-fill-available;
+  }
 }
 
 #root {
   background-color: var(--bg-primary);
   min-height: 100vh;
+  min-height: -webkit-fill-available;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Fix for position: fixed on mobile */
+@media (max-width: 768px) {
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure fixed elements work on mobile */
+  nav[style*="position: fixed"],
+  header[style*="position: fixed"] {
+    position: fixed !important;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
 }
 
 
