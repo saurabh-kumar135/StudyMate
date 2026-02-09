@@ -45,6 +45,12 @@ const Signup = () => {
     }
 
     try {
+      console.log('🚀 Attempting signup with:', {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        userType: formData.userType
+      });
       
       const response = await axios.post(
         `${API_URL}/api/verify-email/send-otp`,
@@ -58,6 +64,8 @@ const Signup = () => {
         { withCredentials: true }
       );
 
+      console.log('✅ Signup response:', response.data);
+
       if (response.data.success) {
         
         navigate('/verify-email', {
@@ -67,11 +75,21 @@ const Signup = () => {
           }
         });
       } else {
+        console.error('❌ Signup failed:', response.data);
         setErrors(response.data.errors || ['Signup failed']);
       }
     } catch (error) {
-      console.error('Signup error:', error);
-      setErrors([error.response?.data?.errors?.[0] || 'An error occurred']);
+      console.error('❌ Signup error (full):', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error data:', error.response?.data);
+      
+      // Show the actual error message from backend
+      const errorMessage = error.response?.data?.errors?.[0] 
+        || error.response?.data?.error 
+        || error.message 
+        || 'An error occurred';
+      
+      setErrors([errorMessage]);
     } finally {
       setLoading(false);
     }
