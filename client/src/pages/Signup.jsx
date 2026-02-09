@@ -18,7 +18,7 @@ export default function Signup() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
 
   useEffect(() => {
     const handleResize = () => {

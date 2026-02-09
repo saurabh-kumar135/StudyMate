@@ -5,8 +5,8 @@ import { useTheme } from '../context/ThemeContext';
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
-  const [isTablet, setIsTablet] = useState(window.innerWidth > 640 && window.innerWidth <= 1024);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
+  const [isTablet, setIsTablet] = useState(typeof window !== 'undefined' ? (window.innerWidth > 640 && window.innerWidth <= 1024) : false);
 
   useEffect(() => {
     const handleResize = () => {

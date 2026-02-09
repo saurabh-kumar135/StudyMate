@@ -43,8 +43,8 @@ export default function Dashboard() {
   const [recentNotebooks, setRecentNotebooks] = useState([]);
   const [featuredNotebooks, setFeaturedNotebooks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
-  const [isTablet, setIsTablet] = useState(window.innerWidth > 640 && window.innerWidth <= 1024);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
+  const [isTablet, setIsTablet] = useState(typeof window !== 'undefined' ? (window.innerWidth > 640 && window.innerWidth <= 1024) : false);
 
   useEffect(() => {
     const handleResize = () => {
