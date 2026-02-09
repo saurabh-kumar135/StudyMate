@@ -134,6 +134,23 @@ app.use((req, res, next) => {
   next();
 })
 
+// Health check and diagnostic endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    envVarsSet: {
+      MONGODB_URI: !!process.env.MONGODB_URI,
+      SESSION_SECRET: !!process.env.SESSION_SECRET,
+      RESEND_API_KEY: !!process.env.RESEND_API_KEY,
+      GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+      FRONTEND_URL: process.env.FRONTEND_URL || 'not set'
+    },
+    version: 'v2.0-with-logging' // This helps verify which version is deployed
+  });
+});
+
 app.use('/api/', apiLimiter);
 
 app.use(authRouter);
