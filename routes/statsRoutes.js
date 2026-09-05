@@ -257,9 +257,9 @@ function calculateStreak(activityDates) {
   return streak;
 }
 
-const { computeChurnMetrics, getModelBenchmarks, getCohortAnalytics } = require('../services/retentionService');
+const { computeChurnMetrics, getModelBenchmarks, getLiveCohortAnalytics } = require('../services/retentionService');
 
-// GET /api/user/retention-insights — Student Dropout / Churn Analytics & ML prediction
+// GET /api/user/retention-insights — Student Dropout / Churn Analytics & ML prediction from real MongoDB Atlas data
 router.get('/retention-insights', async (req, res) => {
   try {
     let studentStats = {
@@ -296,7 +296,7 @@ router.get('/retention-insights', async (req, res) => {
 
     const metrics = computeChurnMetrics(studentStats);
     const benchmarks = getModelBenchmarks();
-    const cohort = getCohortAnalytics();
+    const cohort = await getLiveCohortAnalytics();
 
     res.json({
       success: true,
