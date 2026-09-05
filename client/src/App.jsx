@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
 import AgentShowcase from './pages/AgentShowcase';
+import RetentionAnalytics from './pages/RetentionAnalytics';
 import './App.css';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/retention" element={<RetentionAnalytics />} />
                 <Route path="/ai-tutor" element={<AITutor />} />
                 <Route path="/materials" element={<StudyMaterials />} />
                 <Route path="/quiz" element={<Quiz />} />

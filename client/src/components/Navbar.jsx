@@ -16,6 +16,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/app/dashboard', label: 'Dashboard' },
+    { to: '/app/retention', label: 'Retention AI' },
     { to: '/app/ai-tutor', label: 'AI tutor' },
     { to: '/app/materials', label: 'Materials' },
     { to: '/app/quiz', label: 'Quizzes' },
