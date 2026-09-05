@@ -75,7 +75,11 @@ export default function Signup() {
         navigate('/app/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+      const serverMsg = err.response?.data?.error || 
+                        (Array.isArray(err.response?.data?.errors) ? err.response.data.errors[0] : null) || 
+                        err.response?.data?.message || 
+                        'Signup failed. Please try again.';
+      setError(serverMsg);
     } finally {
       setLoading(false);
     }

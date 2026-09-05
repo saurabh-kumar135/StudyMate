@@ -19,6 +19,7 @@ const aiRouter = require("./routes/aiRoutes")
 const materialRouter = require("./routes/materialRoutes") 
 const statsRouter = require("./routes/statsRoutes")
 const notebookRouter = require("./routes/notebookRoutes")
+const agentRouter = require("./routes/agentRoutes")
 const rootDir = require("./utils/pathUtil");
 const errorsController = require("./controllers/errors");
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -160,6 +161,7 @@ app.use('/api/ai', aiRouter);
 app.use('/api/materials', materialRouter);
 app.use('/api/user', statsRouter);
 app.use('/api/notebooks', notebookRouter);
+app.use('/api/agent', agentRouter);
  
 app.use(storeRouter);
 app.use(hostRouter);

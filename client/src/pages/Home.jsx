@@ -71,9 +71,15 @@ export default function Home() {
 
           <Link
             to="/signup"
-            style={{ display: 'inline-block', padding: '18px 48px', background: 'linear-gradient(to right, #3b82f6, #06b6d4)', color: 'white', borderRadius: '9999px', fontSize: '20px', fontWeight: '500', textDecoration: 'none' }}
+            style={{ display: 'inline-block', padding: '18px 48px', background: 'linear-gradient(to right, #3b82f6, #06b6d4)', color: 'white', borderRadius: '9999px', fontSize: '20px', fontWeight: '500', textDecoration: 'none', marginRight: '16px' }}
           >
             Try StudyMate
+          </Link>
+          <Link
+            to="/ai-showcase"
+            style={{ display: 'inline-block', padding: '18px 48px', border: '2px solid var(--text-primary)', color: 'var(--text-primary)', borderRadius: '9999px', fontSize: '20px', fontWeight: '500', textDecoration: 'none' }}
+          >
+            🤖 AI Showcase
           </Link>
         </div>
 

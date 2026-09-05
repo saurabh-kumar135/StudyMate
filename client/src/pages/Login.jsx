@@ -53,7 +53,11 @@ export default function Login() {
         navigate('/app/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      const serverMsg = err.response?.data?.error || 
+                        (Array.isArray(err.response?.data?.errors) ? err.response.data.errors[0] : null) || 
+                        err.response?.data?.message || 
+                        'Login failed. Please try again.';
+      setError(serverMsg);
     } finally {
       setLoading(false);
     }
