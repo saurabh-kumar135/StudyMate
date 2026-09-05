@@ -257,4 +257,83 @@ function calculateStreak(activityDates) {
   return streak;
 }
 
+const { computeChurnMetrics, getModelBenchmarks, getCohortAnalytics } = require('../services/retentionService');
+
+// GET /api/user/retention-insights — Student Dropout / Churn Analytics & ML prediction
+router.get('/retention-insights', async (req, res) => {
+  try {
+    let studentStats = {
+      weeklyHours: 4.5,
+      streak: 5,
+      quizzes: 8,
+      aiInteractions: 5,
+      materials: 6,
+      daysInactive: 0.5
+    };
+    let isDemo = true;
+    let userName = 'Demo Student';
+
+    if (req.session?.isLoggedIn && req.session?.user?._id) {
+      const user = await User.findById(req.session.user._id);
+      if (user) {
+        isDemo = false;
+        userName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email;
+        const now = new Date();
+        const lastAct = user.stats?.lastActivityAt ? new Date(user.stats.lastActivityAt) : now;
+        const daysInactive = Math.max(0, (now - lastAct) / (1000 * 60 * 60 * 24));
+        const currentStreak = calculateStreak(user.stats?.activityDates || []);
+
+        studentStats = {
+          weeklyHours: parseFloat(((user.stats?.weeklyTimeMinutes || 0) / 60).toFixed(1)),
+          streak: currentStreak,
+          quizzes: user.stats?.quizzesCompleted || 0,
+          aiInteractions: user.stats?.aiConversations || 0,
+          materials: user.stats?.materialsReviewed || 0,
+          daysInactive: parseFloat(daysInactive.toFixed(1))
+        };
+      }
+    }
+
+    const metrics = computeChurnMetrics(studentStats);
+    const benchmarks = getModelBenchmarks();
+    const cohort = getCohortAnalytics();
+
+    res.json({
+      success: true,
+      isDemo,
+      userName,
+      metrics,
+      benchmarks,
+      cohort
+    });
+  } catch (error) {
+    console.error('Error fetching retention insights:', error);
+    res.status(500).json({ success: false, error: 'Failed to compute retention insights' });
+  }
+});
+
+// POST /api/user/retention-simulate — Real-time What-If Churn Simulator
+router.post('/retention-simulate', (req, res) => {
+  try {
+    const { weeklyHours, streak, quizzes, aiInteractions, materials, daysInactive } = req.body;
+    const metrics = computeChurnMetrics({
+      weeklyHours,
+      streak,
+      quizzes,
+      aiInteractions,
+      materials,
+      daysInactive
+    });
+
+    res.json({
+      success: true,
+      metrics
+    });
+  } catch (error) {
+    console.error('Error simulating retention:', error);
+    res.status(500).json({ success: false, error: 'Failed to simulate retention' });
+  }
+});
+
 module.exports = router;
+

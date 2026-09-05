@@ -147,6 +147,51 @@ export default function Dashboard() {
         <p style={{ color: 'var(--text-secondary)', fontSize: isMobile ? '14px' : '18px' }}>Here's your study progress</p>
       </div>
 
+      {/* AI Retention Intelligence Banner */}
+      <div style={{
+        marginBottom: isMobile ? '20px' : '28px',
+        padding: isMobile ? '16px' : '20px 24px',
+        borderRadius: '16px',
+        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'linear-gradient(135deg, #3b82f6, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <Brain size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              AI Student Retention & Churn Intelligence
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Predictive risk stratification, study momentum scoring & What-If simulator.
+            </div>
+          </div>
+        </div>
+        <Link
+          to="/app/retention"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
+            background: 'linear-gradient(to right, #3b82f6, #06b6d4)',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: '600',
+            textDecoration: 'none'
+          }}
+        >
+          View Retention AI Insights →
+        </Link>
+      </div>
+
       {/* Stats Grid - 4 columns */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'), gap: isMobile ? '16px' : '20px', marginBottom: isMobile ? '32px' : '40px' }}>
         <div style={cardStyle}>
