@@ -42,6 +42,17 @@ exports.checkSession = (req, res, next) => {
   }
 };
 
+function normalizeUserEmail(rawEmail) {
+  if (!rawEmail || typeof rawEmail !== 'string') return '';
+  const trimmed = rawEmail.trim().toLowerCase();
+  const parts = trimmed.split('@');
+  if (parts.length === 2 && (parts[1] === 'gmail.com' || parts[1] === 'googlemail.com')) {
+    const cleanUser = parts[0].split('+')[0].replace(/\./g, '');
+    return `${cleanUser}@gmail.com`;
+  }
+  return trimmed;
+}
+
 exports.postSignup = [
   check("name")
   .trim()
@@ -50,8 +61,7 @@ exports.postSignup = [
 
   check("email")
   .isEmail()
-  .withMessage("Please enter a valid email")
-  .normalizeEmail(),
+  .withMessage("Please enter a valid email"),
 
   check("password")
   .isLength({min: 6})
@@ -62,20 +72,33 @@ exports.postSignup = [
     const {name, email, password} = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      const firstMsg = errors.array()[0].msg;
       return res.status(422).json({
         success: false,
-        error: errors.array()[0].msg,
+        error: firstMsg,
+        message: firstMsg,
         errors: errors.array().map(err => err.msg),
       });
     }
 
     try {
-      // Check if user already exists
-      const existingUser = await User.findOne({email});
+      const normalizedEmail = normalizeUserEmail(email);
+      const rawLower = email ? email.trim().toLowerCase() : '';
+
+      // Check if user already exists (check both raw and normalized)
+      const existingUser = await User.findOne({
+        $or: [
+          { email: rawLower },
+          { email: normalizedEmail }
+        ]
+      });
+
       if (existingUser) {
         return res.status(422).json({
           success: false,
           error: "User with this email already exists",
+          message: "User with this email already exists. Please log in instead.",
+          errors: ["User with this email already exists"],
         });
       }
 
@@ -83,7 +106,7 @@ exports.postSignup = [
       const user = new User({
         firstName: name.split(' ')[0] || name,
         lastName: name.split(' ').slice(1).join(' ') || '',
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         userType: 'guest'
       });
@@ -107,9 +130,12 @@ exports.postSignup = [
       });
     } catch (err) {
       console.error('Signup error:', err);
+      const errMsg = err.message || "Signup failed. Please try again.";
       return res.status(422).json({
         success: false,
-        error: err.message || "Signup failed. Please try again.",
+        error: errMsg,
+        message: errMsg,
+        errors: [errMsg],
       });
     }
   }
@@ -117,11 +143,31 @@ exports.postSignup = [
 
 exports.postLogin = async (req, res, next) => {
   const {email, password} = req.body;
-  const user = await User.findOne({email});
+  if (!email || !password) {
+    return res.status(422).json({
+      success: false,
+      error: "Email and password are required",
+      message: "Email and password are required",
+      errors: ["Email and password are required"],
+    });
+  }
+
+  const normalizedEmail = normalizeUserEmail(email);
+  const rawLower = email.trim().toLowerCase();
+
+  const user = await User.findOne({
+    $or: [
+      { email: rawLower },
+      { email: normalizedEmail }
+    ]
+  });
+
   if (!user) {
     return res.status(422).json({
       success: false,
-      errors: ["User does not exist"],
+      error: "User does not exist with this email",
+      message: "User does not exist with this email. Please check your email or sign up.",
+      errors: ["User does not exist with this email"],
       oldInput: {email},
     });
   }
@@ -130,7 +176,9 @@ exports.postLogin = async (req, res, next) => {
   if (!isMatch) {
     return res.status(422).json({
       success: false,
-      errors: ["Invalid Password"],
+      error: "Invalid password",
+      message: "Invalid password. Please check your credentials.",
+      errors: ["Invalid password"],
       oldInput: {email},
     });
   }

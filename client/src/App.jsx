@@ -11,6 +11,7 @@ import SearchResults from './pages/SearchResults';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Home from './pages/Home';
+import AgentShowcase from './pages/AgentShowcase';
 import './App.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Routes>
           {/* Landing Page (No Navbar) */}
           <Route path="/" element={<Home />} />
+          <Route path="/ai-showcase" element={<AgentShowcase />} />
           
           {/* Auth Routes (No Navbar) */}
           <Route path="/login" element={<Login />} />
