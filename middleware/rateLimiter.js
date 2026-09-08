@@ -2,7 +2,7 @@ const rateLimit = require('express-rate-limit');
 
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 3,
+  max: 10,
   message: {
     success: false,
     errors: ['Too many verification requests. Please try again in 15 minutes.']

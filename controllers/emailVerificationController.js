@@ -57,7 +57,7 @@ exports.sendOTP = async (req, res) => {
     const otpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes validity
 
     console.log('🔐 Hashing password for pending registration...');
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     console.log('💾 Storing pending verification for:', normalizedEmail);
     storePendingVerification(normalizedEmail, {
