@@ -10,6 +10,7 @@ import NotebookView from './pages/NotebookView';
 import SearchResults from './pages/SearchResults';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import VerifyEmail from './pages/auth/VerifyEmail';
 import Home from './pages/Home';
 import AgentShowcase from './pages/AgentShowcase';
 import RetentionAnalytics from './pages/RetentionAnalytics';
@@ -27,6 +28,7 @@ function App() {
           {/* Auth Routes (No Navbar) */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           
           {/* App Routes (With Navbar) */}
           <Route path="/app/*" element={

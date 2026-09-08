@@ -1,53 +1,79 @@
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Create reusable transporter using Gmail OAuth2 (priority) or Gmail App Password (fallback)
+const getTransporter = () => {
+  const emailUser = process.env.EMAIL_USER || 'saurabhrajput.25072005@gmail.com';
+
+  if (process.env.GMAIL_REFRESH_TOKEN && process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        type: 'OAuth2',
+        user: emailUser,
+        clientId: process.env.GMAIL_CLIENT_ID,
+        clientSecret: process.env.GMAIL_CLIENT_SECRET,
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN
+      }
+    });
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: emailUser,
+      pass: (process.env.EMAIL_PASS || 'sheleprpeihikkwl').replace(/\s+/g, '')
+    }
+  });
+};
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 const sendOTPEmail = async (email, otp, firstName) => {
-  // Check if API key is configured
-  if (!process.env.RESEND_API_KEY) {
-    console.error('❌ RESEND_API_KEY is not configured!');
-    return { 
-      success: false, 
-      error: 'Email service not configured. Please contact administrator.' 
-    };
-  }
+  const senderEmail = process.env.EMAIL_USER || 'saurabhrajput.25072005@gmail.com';
+  const transporter = getTransporter();
 
   const mailOptions = {
-    from: 'HavenTo <onboarding@resend.dev>', // Resend's test email for free tier
+    from: `"StudyMate" <${senderEmail}>`,
     to: email,
-    subject: 'Complete your HavenTo registration',
+    subject: 'Complete your StudyMate registration - Verification Code',
     html: `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Verify Your Email</title>
+        <title>Verify Your Email - StudyMate</title>
       </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px;">
-        <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 30px; border-radius: 10px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px;">
-            <h1 style="margin: 0; font-size: 24px;">Welcome to HavenTo!</h1>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 24px; background-color: #f8fafc;">
+        <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 36px 32px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: white; padding: 28px; text-align: center; border-radius: 12px; margin-bottom: 28px;">
+            <div style="font-size: 32px; margin-bottom: 6px;">🎓</div>
+            <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Welcome to StudyMate!</h1>
+            <p style="margin: 6px 0 0 0; font-size: 14px; opacity: 0.9; font-weight: 500;">AI-Powered Personalized Learning Platform</p>
           </div>
           
-          <p>Hi ${firstName || 'there'},</p>
-          <p>Thank you for signing up with HavenTo! Please use the verification code below to complete your registration:</p>
+          <!-- Content -->
+          <p style="font-size: 16px; margin-bottom: 12px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+          <p style="font-size: 15px; color: #475569; margin-bottom: 24px;">Thank you for registering for StudyMate. Please use the 6-digit verification code below to verify your email address and activate your account:</p>
           
-          <div style="text-align: center; margin: 30px 0; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #667eea; font-family: 'Courier New', monospace;">${otp}</div>
+          <!-- OTP Box -->
+          <div style="text-align: center; margin: 28px 0; padding: 24px 20px; background: #f0f9ff; border-radius: 12px; border: 2px dashed #38bdf8;">
+            <div style="font-size: 38px; font-weight: 800; letter-spacing: 10px; color: #0284c7; font-family: 'Courier New', Courier, monospace;">${otp}</div>
+            <p style="margin: 10px 0 0 0; font-size: 13px; color: #64748b; font-weight: 500;">⏱️ Valid for 10 minutes</p>
           </div>
           
-          <p><strong>This code will expire in 10 minutes.</strong></p>
-          <p>If you didn't create an account with HavenTo, you can safely ignore this email.</p>
+          <!-- Warning -->
+          <p style="font-size: 13px; color: #94a3b8; line-height: 1.5;">If you did not initiate this request or didn't sign up for StudyMate, please disregard this email. Your email address remains safe.</p>
           
-          <div style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
-            <p>© 2024 HavenTo. All rights reserved.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0 20px 0;" />
+          
+          <!-- Footer -->
+          <div style="text-align: center; color: #94a3b8; font-size: 12px;">
+            <p style="margin: 0;">© ${new Date().getFullYear()} StudyMate AI Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -56,65 +82,59 @@ const sendOTPEmail = async (email, otp, firstName) => {
   };
 
   try {
-    console.log('📤 Sending email via Resend API...');
-    const data = await resend.emails.send(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${email}`, data);
-    return { success: true };
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ StudyMate OTP email sent successfully to ${email} (MessageId: ${info.messageId})`);
+    return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error);
-    console.error('Error details:', {
-      message: error.message,
-      statusCode: error.statusCode,
-      name: error.name
-    });
+    console.error('❌ Error sending StudyMate OTP email:', error.message);
     return { success: false, error: error.message };
   }
 };
 
 const sendPasswordResetEmail = async (email, resetToken, firstName) => {
-  const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  const senderEmail = process.env.EMAIL_USER || 'saurabhrajput.25072005@gmail.com';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://study-mate1.vercel.app';
+  const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+  const transporter = getTransporter();
   
   const mailOptions = {
-    from: 'HavenTo <onboarding@resend.dev>', // Resend's test email for free tier
+    from: `"StudyMate" <${senderEmail}>`,
     to: email,
-    subject: 'Reset your HavenTo password',
+    subject: 'Reset your StudyMate password 🔑',
     html: `
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reset Your Password</title>
+        <title>Reset Your Password - StudyMate</title>
       </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 20px;">
-        <div style="max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 30px; border-radius: 10px;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 30px -30px;">
-            <h1 style="margin: 0; font-size: 24px;">Password Reset</h1>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 24px; background-color: #f8fafc;">
+        <div style="max-width: 540px; margin: 0 auto; background: #ffffff; padding: 36px 32px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04); border: 1px solid #e2e8f0;">
+          <div style="background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: white; padding: 28px; text-align: center; border-radius: 12px; margin-bottom: 24px;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Password Reset 🔑</h1>
+            <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">StudyMate Account Security</p>
           </div>
           
-          <p>Hi ${firstName || 'there'},</p>
-          <p>We received a request to reset your password for your HavenTo account.</p>
+          <p style="font-size: 16px;">Hi <strong>${firstName || 'there'}</strong>,</p>
+          <p style="font-size: 15px; color: #475569;">We received a request to reset the password for your StudyMate account.</p>
           
-          <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <p style="margin: 0; color: #856404;"><strong>🔒 Security Notice:</strong> This is a legitimate password reset email from HavenTo.</p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${resetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);">Reset My Password</a>
           </div>
           
-          <p>Click the button below to create a new password:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" style="display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; font-weight: 600;">Reset My Password</a>
+          <p style="font-size: 13px; color: #64748b; margin-top: 20px;">Or copy and paste this link into your browser:</p>
+          <div style="background: #f1f5f9; padding: 12px; border-radius: 8px; word-break: break-all; font-size: 12px; color: #475569;">
+            <a href="${resetLink}" style="color: #2563eb; text-decoration: none;">${resetLink}</a>
           </div>
           
-          <p style="margin-top: 25px;">Or copy this secure link:</p>
-          <div style="background: white; padding: 15px; border-radius: 5px; word-break: break-all; margin: 15px 0;">
-            <a href="${resetLink}" style="color: #667eea; text-decoration: none;">${resetLink}</a>
-          </div>
+          <p style="font-size: 13px; color: #e11d48; margin-top: 20px;"><strong>⏰ This link expires in 1 hour.</strong></p>
+          <p style="font-size: 13px; color: #94a3b8;">If you didn't request this password reset, you can safely ignore this email.</p>
           
-          <p><strong>⏰ This link expires in 1 hour</strong> for your security.</p>
-          <p>If you didn't request this password reset, you can safely ignore this email. Your password will not be changed.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
           
-          <div style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
-            <p>© 2024 HavenTo. All rights reserved.</p>
+          <div style="text-align: center; color: #94a3b8; font-size: 12px;">
+            <p style="margin: 0;">© ${new Date().getFullYear()} StudyMate AI Platform. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -123,11 +143,11 @@ const sendPasswordResetEmail = async (email, resetToken, firstName) => {
   };
 
   try {
-    const data = await resend.emails.send(mailOptions);
-    console.log(`Password reset email sent successfully to ${email}`, data);
-    return { success: true };
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset email sent successfully to ${email} (MessageId: ${info.messageId})`);
+    return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending password reset email:', error.message);
+    console.error('❌ Error sending password reset email:', error.message);
     return { success: false, error: error.message };
   }
 };

@@ -10,7 +10,7 @@ setInterval(() => {
       console.log(`Cleaned up expired OTP for ${email}`);
     }
   }
-}, 10 * 60 * 1000); 
+}, 10 * 60 * 1000).unref(); 
 
 const storePendingVerification = (email, userData, otp, expiresAt) => {
   pendingVerifications.set(email, {

@@ -146,9 +146,12 @@ app.get('/api/health', (req, res) => {
       SESSION_SECRET: !!process.env.SESSION_SECRET,
       RESEND_API_KEY: !!process.env.RESEND_API_KEY,
       GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+      EMAIL_USER: !!process.env.EMAIL_USER,
+      GMAIL_REFRESH_TOKEN: !!process.env.GMAIL_REFRESH_TOKEN,
+      EMAIL_PASS: !!process.env.EMAIL_PASS,
       FRONTEND_URL: process.env.FRONTEND_URL || 'not set'
     },
-    version: 'v2.0-with-logging' // This helps verify which version is deployed
+    version: 'v2.1-with-otp' // Verified version with OTP sending mechanism
   });
 });
 
