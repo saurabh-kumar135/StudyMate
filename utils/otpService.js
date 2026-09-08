@@ -1,28 +1,13 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-let cachedTransporter = null;
-
-// Create reusable pooled transporter using Gmail OAuth2 (priority) or Gmail App Password (fallback)
+// Create reusable transporter using Gmail OAuth2 (priority) or Gmail App Password (fallback)
 const getTransporter = () => {
-  if (cachedTransporter) {
-    return cachedTransporter;
-  }
-
   const emailUser = process.env.EMAIL_USER || 'saurabhrajput.25072005@gmail.com';
-  const poolOptions = {
-    service: 'gmail',
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 100,
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 10000
-  };
 
   if (process.env.GMAIL_REFRESH_TOKEN && process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET) {
-    cachedTransporter = nodemailer.createTransport({
-      ...poolOptions,
+    return nodemailer.createTransport({
+      service: 'gmail',
       auth: {
         type: 'OAuth2',
         user: emailUser,
@@ -31,17 +16,15 @@ const getTransporter = () => {
         refreshToken: process.env.GMAIL_REFRESH_TOKEN
       }
     });
-  } else {
-    cachedTransporter = nodemailer.createTransport({
-      ...poolOptions,
-      auth: {
-        user: emailUser,
-        pass: (process.env.EMAIL_PASS || 'sheleprpeihikkwl').replace(/\s+/g, '')
-      }
-    });
   }
 
-  return cachedTransporter;
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: emailUser,
+      pass: (process.env.EMAIL_PASS || 'sheleprpeihikkwl').replace(/\s+/g, '')
+    }
+  });
 };
 
 const generateOTP = () => {
