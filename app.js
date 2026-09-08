@@ -137,6 +137,9 @@ app.use((req, res, next) => {
 
 // Health check and diagnostic endpoint
 app.get('/api/health', (req, res) => {
+  const cid = (process.env.GMAIL_CLIENT_ID || '').trim();
+  const csec = (process.env.GMAIL_CLIENT_SECRET || '').trim();
+  const rt = (process.env.GMAIL_REFRESH_TOKEN || '').trim();
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -147,11 +150,16 @@ app.get('/api/health', (req, res) => {
       RESEND_API_KEY: !!process.env.RESEND_API_KEY,
       GEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
       EMAIL_USER: !!process.env.EMAIL_USER,
-      GMAIL_REFRESH_TOKEN: !!process.env.GMAIL_REFRESH_TOKEN,
+      GMAIL_CLIENT_ID: !!cid,
+      GMAIL_CLIENT_ID_LEN: cid.length,
+      GMAIL_CLIENT_SECRET: !!csec,
+      GMAIL_CLIENT_SECRET_LEN: csec.length,
+      GMAIL_REFRESH_TOKEN: !!rt,
+      GMAIL_REFRESH_TOKEN_LEN: rt.length,
       EMAIL_PASS: !!process.env.EMAIL_PASS,
       FRONTEND_URL: process.env.FRONTEND_URL || 'not set'
     },
-    version: 'v2.1-with-otp' // Verified version with OTP sending mechanism
+    version: 'v2.2-clean-oauth' // Verified version with clean OAuth2 credentials
   });
 });
 

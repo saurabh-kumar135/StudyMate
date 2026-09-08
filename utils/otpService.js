@@ -1,18 +1,35 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
-const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
-const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
-const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
-const SENDER_EMAIL = process.env.EMAIL_USER || 'saurabhrajput.25072005@gmail.com';
-const EMAIL_PASS = (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+function cleanEnv(val, keyPrefix) {
+  if (!val) return '';
+  let str = String(val).trim();
+  if (keyPrefix) {
+    const prefixRegex = new RegExp(`^${keyPrefix}[\\s:=]+`, 'i');
+    str = str.replace(prefixRegex, '');
+  }
+  while ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  return str.replace(/^[\s\uFEFF\xA0\x00-\x1F]+|[\s\uFEFF\xA0\x00-\x1F]+$/g, '').trim();
+}
+
+function getCredentials() {
+  const clientId = cleanEnv(process.env.GMAIL_CLIENT_ID, 'GMAIL_CLIENT_ID');
+  const clientSecret = cleanEnv(process.env.GMAIL_CLIENT_SECRET, 'GMAIL_CLIENT_SECRET');
+  const refreshToken = cleanEnv(process.env.GMAIL_REFRESH_TOKEN, 'GMAIL_REFRESH_TOKEN');
+  const senderEmail = cleanEnv(process.env.EMAIL_USER, 'EMAIL_USER') || 'saurabhrajput.25072005@gmail.com';
+  const emailPass = cleanEnv(process.env.EMAIL_PASS || 'sheleprpeihikkwl', 'EMAIL_PASS').replace(/\s+/g, '');
+  return { clientId, clientSecret, refreshToken, senderEmail, emailPass };
+}
 
 /**
  * Send email via Gmail REST API over HTTPS (Port 443).
  * This completely avoids SMTP port blocking (ports 465/587) on cloud platforms like Render.
  */
 async function sendViaGmailRestApi({ to, subject, html }) {
-  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
+  const { clientId, clientSecret, refreshToken, senderEmail } = getCredentials();
+  if (!clientId || !clientSecret || !refreshToken) {
     throw new Error('Gmail OAuth2 credentials missing in environment');
   }
 
@@ -21,9 +38,9 @@ async function sendViaGmailRestApi({ to, subject, html }) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id: GMAIL_CLIENT_ID,
-      client_secret: GMAIL_CLIENT_SECRET,
-      refresh_token: GMAIL_REFRESH_TOKEN,
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
       grant_type: 'refresh_token'
     }).toString()
   });
@@ -38,7 +55,7 @@ async function sendViaGmailRestApi({ to, subject, html }) {
   // Step 2: Build RFC 2822 MIME message
   const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
   const messageParts = [
-    `From: StudyMate <${SENDER_EMAIL}>`,
+    `From: StudyMate <${senderEmail}>`,
     `To: ${to}`,
     `Subject: ${utf8Subject}`,
     'MIME-Version: 1.0',
@@ -79,19 +96,20 @@ async function sendViaGmailRestApi({ to, subject, html }) {
  * Fallback to Nodemailer SMTP
  */
 async function sendViaNodemailer({ to, subject, html }) {
+  const { senderEmail, emailPass } = getCredentials();
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: SENDER_EMAIL,
-      pass: EMAIL_PASS || 'sheleprpeihikkwl'
+      user: senderEmail,
+      pass: emailPass
     },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 8000
   });
 
   const info = await transporter.sendMail({
-    from: `"StudyMate" <${SENDER_EMAIL}>`,
+    from: `"StudyMate" <${senderEmail}>`,
     to,
     subject,
     html
@@ -148,7 +166,8 @@ const sendOTPEmail = async (email, otp, firstName) => {
   `;
 
   // Primary: HTTPS Gmail REST API (instant, never blocked by Render)
-  if (GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN) {
+  const { clientId, clientSecret, refreshToken } = getCredentials();
+  if (clientId && clientSecret && refreshToken) {
     try {
       const res = await sendViaGmailRestApi({ to: email, subject, html });
       console.log(`✅ StudyMate OTP email sent successfully via Gmail API to ${email} (ID: ${res.messageId})`);
@@ -214,7 +233,8 @@ const sendPasswordResetEmail = async (email, resetToken, firstName) => {
     </html>
   `;
 
-  if (GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN) {
+  const resetCreds = getCredentials();
+  if (resetCreds.clientId && resetCreds.clientSecret && resetCreds.refreshToken) {
     try {
       return await sendViaGmailRestApi({ to: email, subject, html });
     } catch {
