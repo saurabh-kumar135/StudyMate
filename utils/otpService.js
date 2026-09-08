@@ -83,8 +83,11 @@ async function sendViaNodemailer({ to, subject, html }) {
     service: 'gmail',
     auth: {
       user: SENDER_EMAIL,
-      pass: EMAIL_PASS
-    }
+      pass: EMAIL_PASS || 'sheleprpeihikkwl'
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
   });
 
   const info = await transporter.sendMail({
