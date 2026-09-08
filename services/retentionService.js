@@ -256,11 +256,68 @@ async function getLiveCohortAnalytics() {
       retentionRate: Math.round((count / total) * 100)
     }));
 
+    // Detailed statistical distributions
+    const allHours = users.map(u => (u.stats?.weeklyTimeMinutes || 0) / 60).sort((a, b) => a - b);
+    const allStreaks = users.map(u => u.stats?.currentStreak || 0).sort((a, b) => a - b);
+
+    const medianWeeklyHours = allHours.length ? parseFloat(allHours[Math.floor(allHours.length / 2)].toFixed(1)) : 0;
+    const meanWeeklyHours = parseFloat((sumWeeklyHours / total).toFixed(1));
+
+    const medianStreak = allStreaks.length ? allStreaks[Math.floor(allStreaks.length / 2)] : 0;
+    const meanStreak = parseFloat((sumStreak / total).toFixed(1));
+
+    // 1. Study Hours Binned Histogram
+    const hoursHistogram = [
+      { id: 'h1', range: '0 - 2h', label: '0-2 hrs', min: 0, max: 2, count: 0, color: '#ef4444', tier: 'At-Risk Cohort', insight: 'High churn hazard; below minimum engagement threshold' },
+      { id: 'h2', range: '2 - 4h', label: '2-4 hrs', min: 2, max: 4, count: 0, color: '#f59e0b', tier: 'Developing', insight: 'Emerging consistency; benefits from streak reminders' },
+      { id: 'h3', range: '4 - 6h', label: '4-6 hrs', min: 4, max: 6, count: 0, color: '#3b82f6', tier: 'Steady Learners', insight: 'Optimal baseline study cadence with balanced recall' },
+      { id: 'h4', range: '6 - 8h', label: '6-8 hrs', min: 6, max: 8, count: 0, color: '#10b981', tier: 'High Engagement', insight: 'Strong learning persistence; frequent quiz completer' },
+      { id: 'h5', range: '8h+',   label: '8+ hrs',  min: 8, max: 999, count: 0, color: '#8b5cf6', tier: 'Elite Champions', insight: 'Top academic cohort; intensive AI tutor interaction' }
+    ];
+
+    allHours.forEach(h => {
+      if (h < 2) hoursHistogram[0].count++;
+      else if (h < 4) hoursHistogram[1].count++;
+      else if (h < 6) hoursHistogram[2].count++;
+      else if (h < 8) hoursHistogram[3].count++;
+      else hoursHistogram[4].count++;
+    });
+    hoursHistogram.forEach(b => {
+      b.percentage = Math.round((b.count / total) * 100);
+    });
+
+    // 2. Streak Binned Histogram
+    const streakHistogram = [
+      { id: 's1', range: '0 - 2d', label: '0-2 days', min: 0, max: 2, count: 0, color: '#ef4444', tier: 'Reset / Drop', insight: 'Broken practice cadence; needs streak-saver notification' },
+      { id: 's2', range: '3 - 5d', label: '3-5 days', min: 3, max: 5, count: 0, color: '#f59e0b', tier: 'Building Habit', insight: 'Passing initial habit formation threshold' },
+      { id: 's3', range: '6 - 9d', label: '6-9 days', min: 6, max: 9, count: 0, color: '#3b82f6', tier: 'Consistent', insight: 'Solid weekly retention; resilient learning habit' },
+      { id: 's4', range: '10 - 14d', label: '10-14 days', min: 10, max: 14, count: 0, color: '#10b981', tier: 'Dedicated', insight: 'Deep engagement with 90%+ 30-day retention probability' },
+      { id: 's5', range: '15d+', label: '15+ days', min: 15, max: 999, count: 0, color: '#8b5cf6', tier: 'Elite Streak', insight: 'Unbroken daily study streak across multiple weeks' }
+    ];
+
+    allStreaks.forEach(s => {
+      if (s <= 2) streakHistogram[0].count++;
+      else if (s <= 5) streakHistogram[1].count++;
+      else if (s <= 9) streakHistogram[2].count++;
+      else if (s <= 14) streakHistogram[3].count++;
+      else streakHistogram[4].count++;
+    });
+    streakHistogram.forEach(b => {
+      b.percentage = Math.round((b.count / total) * 100);
+    });
+
+    const realStudentsCount = users.filter(u => u.isSeed !== true && u.dataSource !== 'seed').length;
+    const seedStudentsCount = users.filter(u => u.isSeed === true || u.dataSource === 'seed').length;
+
     return {
       totalStudentsTracked: total,
+      realStudentsCount,
+      seedStudentsCount,
       platformAverages: {
-        avgWeeklyHours: parseFloat((sumWeeklyHours / total).toFixed(1)),
-        avgStreak: parseFloat((sumStreak / total).toFixed(1)),
+        avgWeeklyHours: meanWeeklyHours,
+        medianWeeklyHours,
+        avgStreak: meanStreak,
+        medianStreak,
         avgQuizzes: parseFloat((sumQuizzes / total).toFixed(1)),
         avgAi: parseFloat((sumAi / total).toFixed(1))
       },
@@ -294,6 +351,8 @@ async function getLiveCohortAnalytics() {
           description: 'Inactive > 14 days, zero recent sessions'
         }
       ],
+      hoursHistogram,
+      streakHistogram,
       weeklyCohort
     };
   } catch (err) {

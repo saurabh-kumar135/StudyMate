@@ -16,16 +16,50 @@ import {
   ArrowRight,
   BarChart3,
   PieChart,
-  Layers
+  Layers,
+  Database,
+  Users
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+
+// Helper: Convert Polar to Cartesian coordinates for SVG arc math
+const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: Number((centerX + radius * Math.cos(angleInRadians)).toFixed(2)),
+    y: Number((centerY + radius * Math.sin(angleInRadians)).toFixed(2))
+  };
+};
+
+// Helper: Describe SVG Donut Slice Path
+const describeDonutSlice = (cx, cy, outerR, innerR, startAngle, endAngle) => {
+  const safeEndAngle = endAngle - startAngle >= 360 ? startAngle + 359.99 : endAngle;
+  const startOuter = polarToCartesian(cx, cy, outerR, startAngle);
+  const endOuter = polarToCartesian(cx, cy, outerR, safeEndAngle);
+  const startInner = polarToCartesian(cx, cy, innerR, safeEndAngle);
+  const endInner = polarToCartesian(cx, cy, innerR, startAngle);
+  const largeArcFlag = safeEndAngle - startAngle <= 180 ? '0' : '1';
+
+  return [
+    'M', startOuter.x, startOuter.y,
+    'A', outerR, outerR, 0, largeArcFlag, 1, endOuter.x, endOuter.y,
+    'L', startInner.x, startInner.y,
+    'A', innerR, innerR, 0, largeArcFlag, 0, endInner.x, endInner.y,
+    'Z'
+  ].join(' ');
+};
 
 export default function RetentionAnalytics() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   
+  // Interactive Chart States (HavenTo style)
+  const [hoveredCohort, setHoveredCohort] = useState(null);
+  const [activeHistogramTab, setActiveHistogramTab] = useState('hours'); // 'hours' | 'streak' | 'cohort'
+  const [hoveredBin, setHoveredBin] = useState(null);
+
   // Simulator state
   const [simWeeklyHours, setSimWeeklyHours] = useState(4.5);
   const [simStreak, setSimStreak] = useState(5);
@@ -169,32 +203,6 @@ export default function RetentionAnalytics() {
 
   const activeMetrics = simMetrics || data?.metrics;
 
-  // SVG Pie Chart calculations for Cohort Segments
-  const pieSlices = useMemo(() => {
-    if (!data?.cohort?.segments) return [];
-    let cumulativeAngle = 0;
-    return data.cohort.segments.map((seg) => {
-      const angle = (seg.percentage / 100) * 360;
-      const startAngle = cumulativeAngle;
-      cumulativeAngle += angle;
-      const endAngle = cumulativeAngle;
-
-      const x1 = 100 + 80 * Math.cos((Math.PI * (startAngle - 90)) / 180);
-      const y1 = 100 + 80 * Math.sin((Math.PI * (startAngle - 90)) / 180);
-      const x2 = 100 + 80 * Math.cos((Math.PI * (endAngle - 90)) / 180);
-      const y2 = 100 + 80 * Math.sin((Math.PI * (endAngle - 90)) / 180);
-
-      const largeArc = angle > 180 ? 1 : 0;
-      const pathData = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-      return {
-        ...seg,
-        pathData,
-        centerAngle: startAngle + angle / 2
-      };
-    });
-  }, [data]);
-
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 20px', minHeight: '100vh', color: 'var(--text-primary)' }}>
       {/* Top Header */}
@@ -258,6 +266,35 @@ export default function RetentionAnalytics() {
             </span>
           </div>
         )}
+        {/* Real vs Seeded Data Recognition Banner */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          flexWrap: 'wrap',
+          padding: '14px 20px',
+          borderRadius: '14px',
+          background: 'var(--card-bg, #ffffff)',
+          border: '1px solid var(--border-color, #e5e7eb)',
+          marginTop: '16px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Database size={16} color="#3b82f6" /> Database Telemetry Composition:
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>
+              <CheckCircle2 size={13} /> {data?.cohort?.realStudentsCount ?? 2} Real Students (isSeed: false)
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', fontSize: '12px', fontWeight: '700' }}>
+              <Users size={13} /> {data?.cohort?.seedStudentsCount ?? 50} Seeded Benchmark Cohort (isSeed: true)
+            </span>
+          </div>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Distinguished in MongoDB Atlas via <code>isSeed</code> attribute
+          </span>
+        </div>
       </div>
 
       {loading ? (
@@ -536,103 +573,404 @@ export default function RetentionAnalytics() {
             </div>
           </div>
 
-          {/* Visual Analytics Row: Cohort Pie Chart & Retention Histogram */}
+          {/* Visual Analytics Row: Cohort Pie Chart & Binned Histogram (HavenTo Style) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-            {/* Pie Chart: Cohort Segmentation */}
-            <div style={{ padding: '28px', borderRadius: '20px', background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e5e7eb)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <PieChart size={20} color="#3b82f6" />
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>Platform Cohort Segmentation</h3>
-              </div>
-              <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Distribution of students across behavioral persistence tiers.
-              </p>
+            {/* 1. Cohort Distribution Pie / Donut Chart */}
+            <div style={{
+              padding: '28px',
+              borderRadius: '20px',
+              background: 'var(--card-bg, #ffffff)',
+              border: '1px solid var(--border-color, #e5e7eb)',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      <PieChart size={13} /> Cohort Mix
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>Platform Cohort Segmentation</h3>
+                  </div>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: '8px', background: 'var(--bg-secondary, #f9fafb)', border: '1px solid var(--border-color, #e5e7eb)' }}>
+                    Total: {data?.cohort?.totalStudentsTracked || 52}
+                  </span>
+                </div>
+                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Proportion of active vs at-risk learners across behavioral tiers. Hover slices to inspect.
+                </p>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '24px' }}>
-                {/* SVG Donut */}
-                <div style={{ width: '180px', height: '180px', position: 'relative' }}>
-                  <svg viewBox="0 0 200 200" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-                    {pieSlices.map((slice, i) => (
-                      <path
-                        key={i}
-                        d={slice.pathData}
-                        fill={slice.color}
-                        stroke="var(--card-bg, #ffffff)"
-                        strokeWidth="3"
-                      />
-                    ))}
-                    {/* Donut Hole */}
-                    <circle cx="100" cy="100" r="48" fill="var(--card-bg, #ffffff)" />
-                  </svg>
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    pointerEvents: 'none'
-                  }}>
-                    <span style={{ fontSize: '20px', fontWeight: '800' }}>100%</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Students</span>
+                {/* Donut Chart & Center Metric */}
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '16px 0' }}>
+                  <div style={{ position: 'relative', width: '220px', height: '220px' }}>
+                    <svg viewBox="0 0 240 240" style={{ width: '100%', height: '100%', userSelect: 'none' }}>
+                      {(() => {
+                        const segments = data?.cohort?.segments || [
+                          { name: 'Active Champions', percentage: 52, count: 27, color: '#10b981', description: 'Streak ≥ 4 days, study ≥ 4h/wk' },
+                          { name: 'Steady Learners', percentage: 15, count: 8, color: '#3b82f6', description: 'Regular study cadence & quiz participation' },
+                          { name: 'At-Risk Students', percentage: 23, count: 12, color: '#f59e0b', description: 'Inactivity 4-14 days, declining streak' },
+                          { name: 'Dormant Accounts', percentage: 10, count: 5, color: '#ef4444', description: 'Inactive > 14 days, zero recent sessions' }
+                        ];
+                        let currentAngle = 0;
+                        return segments.map((seg) => {
+                          const sliceAngle = (seg.percentage / 100) * 360;
+                          const start = currentAngle;
+                          const end = currentAngle + sliceAngle;
+                          currentAngle += sliceAngle;
+                          const isSelected = hoveredCohort?.name === seg.name;
+                          const outerR = isSelected ? 98 : 90;
+                          const innerR = 56;
+                          const pathData = describeDonutSlice(120, 120, outerR, innerR, start, end);
+
+                          return (
+                            <path
+                              key={seg.name}
+                              d={pathData}
+                              fill={seg.color}
+                              stroke="var(--card-bg, #ffffff)"
+                              strokeWidth="2.5"
+                              style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                              onMouseEnter={() => setHoveredCohort(seg)}
+                              onMouseLeave={() => setHoveredCohort(null)}
+                            />
+                          );
+                        });
+                      })()}
+
+                      {/* Center Donut Hole Display */}
+                      <circle cx="120" cy="120" r="54" fill="var(--card-bg, #ffffff)" />
+                      {hoveredCohort ? (
+                        <g style={{ transition: 'all 0.2s ease' }}>
+                          <text x="120" y="112" textAnchor="middle" style={{ fontSize: '20px', fontWeight: '800', fill: hoveredCohort.color }}>
+                            {hoveredCohort.percentage}%
+                          </text>
+                          <text x="120" y="128" textAnchor="middle" style={{ fontSize: '11px', fontWeight: '700', fill: 'var(--text-primary)' }}>
+                            {hoveredCohort.count} Students
+                          </text>
+                          <text x="120" y="142" textAnchor="middle" style={{ fontSize: '9px', fontWeight: '600', fill: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {hoveredCohort.name}
+                          </text>
+                        </g>
+                      ) : (
+                        <g>
+                          <text x="120" y="114" textAnchor="middle" style={{ fontSize: '22px', fontWeight: '800', fill: 'var(--text-primary)' }}>
+                            {data?.cohort?.totalStudentsTracked || 52}
+                          </text>
+                          <text x="120" y="132" textAnchor="middle" style={{ fontSize: '11px', fontWeight: '600', fill: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Students
+                          </text>
+                        </g>
+                      )}
+                    </svg>
                   </div>
                 </div>
+              </div>
 
-                {/* Legends */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: '160px' }}>
-                  {data?.cohort?.segments?.map((seg, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
+              {/* Category Legend & Metrics */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--border-color, #e5e7eb)' }}>
+                {(data?.cohort?.segments || []).map((seg) => {
+                  const isSelected = hoveredCohort?.name === seg.name;
+                  return (
+                    <div
+                      key={seg.name}
+                      onMouseEnter={() => setHoveredCohort(seg)}
+                      onMouseLeave={() => setHoveredCohort(null)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        background: isSelected ? `${seg.color}15` : 'transparent',
+                        border: isSelected ? `1px solid ${seg.color}40` : '1px solid transparent'
+                      }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: seg.color }} />
-                        <span style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
-                          {seg.name} <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>({seg.count} students)</span>
+                        <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: seg.color, flexShrink: 0 }} />
+                        <span style={{ fontWeight: isSelected ? '700' : '500', color: 'var(--text-primary)' }}>
+                          {seg.name}
                         </span>
                       </div>
-                      <span style={{ fontWeight: '700', color: seg.color }}>{seg.percentage}%</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{seg.count} students</span>
+                        <span style={{ fontWeight: '700', color: seg.color, minWidth: '36px', textAlign: 'right' }}>
+                          {seg.percentage}%
+                        </span>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Histogram / Retention Curve */}
-            <div style={{ padding: '28px', borderRadius: '20px', background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e5e7eb)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <BarChart3 size={20} color="#06b6d4" />
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>7-Week Retention Cohort Curve</h3>
-              </div>
-              <p style={{ margin: '0 0 20px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                Weekly platform retention tracking calculated from {data?.cohort?.totalStudentsTracked || 62} verified student activity vectors.
-              </p>
-
-              {/* Histogram Bars */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '20px', gap: '10px' }}>
-                {data?.cohort?.weeklyCohort?.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, height: '100%', justifyContent: 'flex-end' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '2px' }}>
-                      {item.retentionRate}%
-                    </span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                      {item.activeStudents} active
-                    </span>
-                    <div
-                      style={{
-                        width: '100%',
-                        maxWidth: '36px',
-                        height: `${item.retentionRate * 1.3}px`,
-                        borderRadius: '6px 6px 0 0',
-                        background: idx === 0 ? '#3b82f6' : idx < 3 ? 'linear-gradient(to top, #3b82f6, #06b6d4)' : '#10b981',
-                        transition: 'height 0.4s ease'
-                      }}
-                    />
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                      {item.week}
-                    </span>
+            {/* 2. Interactive Binned Histogram (HavenTo Style) */}
+            <div style={{
+              padding: '28px',
+              borderRadius: '20px',
+              background: 'var(--card-bg, #ffffff)',
+              border: '1px solid var(--border-color, #e5e7eb)',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                {/* Header & Tabs */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      <BarChart3 size={13} /> Telemetry Histogram
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
+                      {activeHistogramTab === 'hours'
+                        ? 'Weekly Study Hours Distribution'
+                        : activeHistogramTab === 'streak'
+                        ? 'Daily Practice Streak Distribution'
+                        : '7-Week Cohort Survival Curve'}
+                    </h3>
                   </div>
-                ))}
+
+                  {/* Tab Switcher */}
+                  <div style={{ display: 'inline-flex', background: 'var(--bg-secondary, #f1f5f9)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                    <button
+                      onClick={() => { setActiveHistogramTab('hours'); setHoveredBin(null); }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        background: activeHistogramTab === 'hours' ? '#3b82f6' : 'transparent',
+                        color: activeHistogramTab === 'hours' ? '#ffffff' : 'var(--text-secondary)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      Study Hours
+                    </button>
+                    <button
+                      onClick={() => { setActiveHistogramTab('streak'); setHoveredBin(null); }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        background: activeHistogramTab === 'streak' ? '#3b82f6' : 'transparent',
+                        color: activeHistogramTab === 'streak' ? '#ffffff' : 'var(--text-secondary)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      Streaks
+                    </button>
+                    <button
+                      onClick={() => { setActiveHistogramTab('cohort'); setHoveredBin(null); }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        background: activeHistogramTab === 'cohort' ? '#3b82f6' : 'transparent',
+                        color: activeHistogramTab === 'cohort' ? '#ffffff' : 'var(--text-secondary)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      7-Wk Curve
+                    </button>
+                  </div>
+                </div>
+
+                {/* Summary Stats Badges */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px' }}>
+                  {activeHistogramTab === 'hours' && (
+                    <>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: '600' }}>
+                        Median: {data?.cohort?.platformAverages?.medianWeeklyHours || 4.0} hrs/wk
+                      </span>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-color, #e2e8f0)', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        Mean: {data?.cohort?.platformAverages?.avgWeeklyHours || 4.0} hrs/wk
+                      </span>
+                    </>
+                  )}
+                  {activeHistogramTab === 'streak' && (
+                    <>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', fontWeight: '600' }}>
+                        Median: {data?.cohort?.platformAverages?.medianStreak || 5} days
+                      </span>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-color, #e2e8f0)', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        Mean: {data?.cohort?.platformAverages?.avgStreak || 4.8} days
+                      </span>
+                    </>
+                  )}
+                  {activeHistogramTab === 'cohort' && (
+                    <>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: '600' }}>
+                        W1 Baseline: 100%
+                      </span>
+                      <span style={{ padding: '3px 10px', borderRadius: '6px', background: 'var(--bg-secondary, #f8fafc)', border: '1px solid var(--border-color, #e2e8f0)', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        W7 Retention: 67%
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Responsive SVG Histogram (HavenTo Style) */}
+                <div style={{ width: '100%', overflowX: 'auto', margin: '12px 0' }}>
+                  {(() => {
+                    const currentList = activeHistogramTab === 'hours'
+                      ? (data?.cohort?.hoursHistogram || [
+                          { id: 'h1', range: '0 - 2h', label: '0-2h', count: 17, percentage: 33, color: '#ef4444', tier: 'At-Risk', insight: 'High churn hazard; below minimum engagement' },
+                          { id: 'h2', range: '2 - 4h', label: '2-4h', count: 8, percentage: 15, color: '#f59e0b', tier: 'Developing', insight: 'Emerging consistency; benefits from streak reminders' },
+                          { id: 'h3', range: '4 - 6h', label: '4-6h', count: 11, percentage: 21, color: '#3b82f6', tier: 'Steady', insight: 'Optimal baseline study cadence with balanced recall' },
+                          { id: 'h4', range: '6 - 8h', label: '6-8h', count: 10, percentage: 19, color: '#10b981', tier: 'High Engagement', insight: 'Strong learning persistence; frequent quiz completer' },
+                          { id: 'h5', range: '8h+', label: '8h+', count: 6, percentage: 12, color: '#8b5cf6', tier: 'Champions', insight: 'Top academic cohort; intensive AI tutor interaction' }
+                        ])
+                      : activeHistogramTab === 'streak'
+                      ? (data?.cohort?.streakHistogram || [
+                          { id: 's1', range: '0 - 2d', label: '0-2d', count: 18, percentage: 35, color: '#ef4444', tier: 'Reset / Drop', insight: 'Broken practice cadence; needs streak-saver notification' },
+                          { id: 's2', range: '3 - 5d', label: '3-5d', count: 16, percentage: 31, color: '#f59e0b', tier: 'Building Habit', insight: 'Passing initial habit formation threshold' },
+                          { id: 's3', range: '6 - 9d', label: '6-9d', count: 9, percentage: 17, color: '#3b82f6', tier: 'Consistent', insight: 'Solid weekly retention; resilient learning habit' },
+                          { id: 's4', range: '10 - 14d', label: '10-14d', count: 6, percentage: 12, color: '#10b981', tier: 'Dedicated', insight: 'Deep engagement with 90%+ 30-day retention probability' },
+                          { id: 's5', range: '15d+', label: '15d+', count: 3, percentage: 6, color: '#8b5cf6', tier: 'Elite Streak', insight: 'Unbroken daily study streak across multiple weeks' }
+                        ])
+                      : (data?.cohort?.weeklyCohort || [
+                          { week: 'W1', activeStudents: 52, retentionRate: 100, color: '#3b82f6', insight: 'Onboarding baseline cohort: 100% active accounts' },
+                          { week: 'W2', activeStudents: 51, retentionRate: 98, color: '#3b82f6', insight: 'Initial week-2 engagement retention' },
+                          { week: 'W3', activeStudents: 49, retentionRate: 94, color: '#3b82f6', insight: 'Strong retention through module assessments' },
+                          { week: 'W4', activeStudents: 47, retentionRate: 90, color: '#06b6d4', insight: 'Mid-term habit resilience' },
+                          { week: 'W5', activeStudents: 47, retentionRate: 90, color: '#06b6d4', insight: 'Steady AI inquiries and quiz attempts' },
+                          { week: 'W6', activeStudents: 41, retentionRate: 79, color: '#10b981', insight: 'Slight tail drop as course units complete' },
+                          { week: 'W7', activeStudents: 35, retentionRate: 67, color: '#10b981', insight: 'Long-term core retention: 67% active champions' }
+                        ]);
+
+                    const maxCount = Math.max(...currentList.map(b => b.count || b.activeStudents || b.retentionRate || 10));
+                    const effectiveMax = Math.ceil(maxCount * 1.25) || 20;
+
+                    return (
+                      <svg viewBox="0 0 520 200" style={{ width: '100%', height: '180px', userSelect: 'none' }}>
+                        {/* Grid Lines */}
+                        {[0.8, 0.55, 0.3, 0.05].map((pct, i) => {
+                          const y = 30 + i * 40;
+                          const labelVal = Math.round(effectiveMax * pct);
+                          return (
+                            <g key={i}>
+                              <line x1="36" y1={y} x2="500" y2={y} stroke="var(--border-color, #e5e7eb)" strokeDasharray={i === 3 ? '0' : '3 3'} strokeWidth="1" />
+                              <text x="28" y={y + 4} textAnchor="end" style={{ fontSize: '10px', fill: 'var(--text-secondary)', fontWeight: '500' }}>
+                                {labelVal}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Median Line (for hours and streak) */}
+                        {activeHistogramTab !== 'cohort' && (
+                          <>
+                            <line x1="265" y1="20" x2="265" y2="160" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="4 3" />
+                            <rect x="230" y="8" width="70" height="18" rx="4" fill="#f59e0b" />
+                            <text x="265" y="20" textAnchor="middle" fill="#ffffff" style={{ fontSize: '9px', fontWeight: '700' }}>
+                              {activeHistogramTab === 'hours' ? 'Median 4.0h' : 'Median 5d'}
+                            </text>
+                          </>
+                        )}
+
+                        {/* Interactive Bars */}
+                        {currentList.map((item, idx) => {
+                          const totalBars = currentList.length;
+                          const slotWidth = (460 / totalBars);
+                          const barWidth = Math.min(54, slotWidth - 12);
+                          const x = 46 + idx * slotWidth + (slotWidth - barWidth) / 2;
+                          const val = item.count !== undefined ? item.count : (item.activeStudents || item.retentionRate);
+                          const barHeight = Math.max(8, (val / effectiveMax) * 125);
+                          const y = 160 - barHeight;
+                          const isHovered = hoveredBin?.id === item.id || hoveredBin?.week === item.week;
+
+                          return (
+                            <g
+                              key={idx}
+                              style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+                              onMouseEnter={() => setHoveredBin(item)}
+                            >
+                              <rect
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={barHeight}
+                                rx="6"
+                                ry="6"
+                                fill={isHovered ? '#3b82f6' : (item.color || '#06b6d4')}
+                                style={{ transition: 'all 0.2s ease', opacity: isHovered ? 1 : 0.88 }}
+                              />
+                              {/* Top Value Badge */}
+                              <text
+                                x={x + barWidth / 2}
+                                y={y - 6}
+                                textAnchor="middle"
+                                style={{ fontSize: '11px', fontWeight: '700', fill: isHovered ? '#3b82f6' : 'var(--text-primary)' }}
+                              >
+                                {item.percentage !== undefined ? `${item.count}` : `${val}`}
+                              </text>
+                              {/* X-axis Label */}
+                              <text
+                                x={x + barWidth / 2}
+                                y="178"
+                                textAnchor="middle"
+                                style={{ fontSize: '11px', fontWeight: isHovered ? '700' : '500', fill: isHovered ? '#3b82f6' : 'var(--text-secondary)' }}
+                              >
+                                {item.label || item.range || item.week}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Interactive Inspection Card Below Histogram (HavenTo Style) */}
+              <div style={{
+                padding: '14px 18px',
+                borderRadius: '12px',
+                background: 'var(--bg-secondary, #f8fafc)',
+                border: '1px solid var(--border-color, #e2e8f0)',
+                marginTop: '12px',
+                fontSize: '13px'
+              }}>
+                {hoveredBin ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <div style={{ fontWeight: '700', color: 'var(--text-primary)', marginBottom: '2px' }}>
+                        {hoveredBin.range ? `Bucket: ${hoveredBin.range} • ${hoveredBin.tier || ''}` : `Cohort: ${hoveredBin.week} Retention`}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {hoveredBin.insight || 'Consistent platform persistence vector.'}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#3b82f6' }}>
+                        {hoveredBin.count !== undefined ? `${hoveredBin.count} Students` : `${hoveredBin.activeStudents} Active`}
+                      </div>
+                      {hoveredBin.percentage !== undefined && (
+                        <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                          {hoveredBin.percentage}% of cohort
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                    <span>👆 Hover any histogram bar to inspect detailed cohort breakdown and pedagogical insights.</span>
+                    <span style={{ fontWeight: '600', color: '#3b82f6' }}>Interactive Telemetry</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

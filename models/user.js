@@ -55,6 +55,15 @@ const userSchema = mongoose.Schema({
     enum: ['guest', 'host'],
     default: 'guest'
   },
+  isSeed: {
+    type: Boolean,
+    default: false
+  },
+  dataSource: {
+    type: String,
+    enum: ['real', 'seed'],
+    default: 'real'
+  },
   favourites: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Home'

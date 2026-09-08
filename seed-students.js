@@ -108,6 +108,12 @@ async function seedStudents() {
     let seededCount = 0;
     let updatedCount = 0;
 
+    // Tag any existing real non-seed accounts explicitly
+    await User.updateMany(
+      { email: { $not: /@studymate\.ac\.in$/ } },
+      { $set: { isSeed: false, dataSource: 'real' } }
+    );
+
     for (const prof of studentProfiles) {
       const email = prof.name.toLowerCase().replace(/\s+/g, '.') + '@studymate.ac.in';
       const [firstName, ...rest] = prof.name.split(' ');
@@ -135,6 +141,8 @@ async function seedStudents() {
         existingUser.firstName = firstName;
         existingUser.lastName = lastName;
         existingUser.stats = stats;
+        existingUser.isSeed = true;
+        existingUser.dataSource = 'seed';
         await existingUser.save();
         updatedCount++;
       } else {
@@ -144,6 +152,8 @@ async function seedStudents() {
           email,
           password: defaultPasswordHash,
           userType: 'guest',
+          isSeed: true,
+          dataSource: 'seed',
           stats,
           createdAt: new Date(now - ((prof.daysAgoActive + 45) * 86400000))
         });
@@ -153,12 +163,16 @@ async function seedStudents() {
     }
 
     console.log(`\n🎉 SEEDING COMPLETE!`);
-    console.log(`   ✨ New Students Seeded: ${seededCount}`);
-    console.log(`   🔄 Existing Records Updated: ${updatedCount}`);
+    console.log(`   ✨ New Students Seeded (isSeed: true): ${seededCount}`);
+    console.log(`   🔄 Existing Seed Records Updated: ${updatedCount}`);
     console.log(`   📊 Total Realistic Student Cohort: ${studentProfiles.length} records in MongoDB Atlas.`);
 
     // Print summary stats from the live database
+    const realCount = await User.countDocuments({ isSeed: { $ne: true } });
+    const seedCount = await User.countDocuments({ isSeed: true });
     const totalUsers = await User.countDocuments();
+    console.log(`   👤 Real Students in MongoDB Atlas: ${realCount}`);
+    console.log(`   🌱 Seeded Students in MongoDB Atlas: ${seedCount}`);
     console.log(`   🌐 Total Users in MongoDB Atlas: ${totalUsers}`);
 
     await mongoose.disconnect();
