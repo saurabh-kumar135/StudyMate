@@ -23,11 +23,19 @@ export default function Navbar() {
   ];
 
   useEffect(() => {
+    try {
+      const cached = localStorage.getItem('user');
+      if (cached) {
+        setUser(JSON.parse(cached));
+      }
+    } catch (e) {}
+
     const fetchUser = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/auth/check-session`, { withCredentials: true });
         if (response.data.success && response.data.isLoggedIn) {
           setUser(response.data.user);
+          localStorage.setItem('user', JSON.stringify(response.data.user));
         }
       } catch (error) {
         console.error('Error fetching user:', error);
@@ -47,6 +55,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('user');
       await axios.post(`${API_URL}/api/auth/logout`, {}, { withCredentials: true });
       navigate('/login');
     } catch (error) {

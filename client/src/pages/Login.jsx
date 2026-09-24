@@ -50,6 +50,9 @@ export default function Login() {
       }, { withCredentials: true });
 
       if (response.data.success) {
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
         navigate('/app/dashboard');
       }
     } catch (err) {
@@ -165,6 +168,9 @@ export default function Login() {
           {/* Continue with Google */}
           <button
             type="button"
+            onClick={() => {
+              setError('Google Single Sign-On is currently in developer preview. Please log in with your email & password.');
+            }}
             style={{
               width: '100%',
               padding: '14px',
