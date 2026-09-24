@@ -4,7 +4,7 @@ import { GraduationCap, Search, LogOut, Menu, X, Settings, Sun, Moon } from 'luc
 import axios from 'axios';
 import { useTheme } from '../context/ThemeContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);

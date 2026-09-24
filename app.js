@@ -159,8 +159,18 @@ app.get('/api/health', (req, res) => {
       EMAIL_PASS: !!process.env.EMAIL_PASS,
       FRONTEND_URL: process.env.FRONTEND_URL || 'not set'
     },
-    version: 'v2.2-clean-oauth' // Verified version with clean OAuth2 credentials
+    version: 'v2.3-havento-otp'
   });
+});
+
+app.get('/api/test-email-send', async (req, res) => {
+  const targetEmail = req.query.email || 'hariomsingh29703@gmail.com';
+  const { sendOTPEmail, generateOTP } = require('./utils/otpService');
+  const code = generateOTP();
+  const startTime = Date.now();
+  const result = await sendOTPEmail(targetEmail, code, 'TestUser');
+  const elapsed = Date.now() - startTime;
+  res.json({ result, code, elapsedMs: elapsed, targetEmail });
 });
 
 app.use('/api/', apiLimiter);

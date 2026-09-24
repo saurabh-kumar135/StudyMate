@@ -2,7 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Trophy, Loader, Sparkles, CheckCircle, XCircle, Brain } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 export default function Quiz() {
   const [topic, setTopic] = useState('');

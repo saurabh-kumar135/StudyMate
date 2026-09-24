@@ -4,7 +4,7 @@ import { FileText, Upload, Loader, Sparkles, BookOpen, File, CheckCircle, Save }
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 // Markdown styles for summary - increased font sizes
 const markdownStyles = {

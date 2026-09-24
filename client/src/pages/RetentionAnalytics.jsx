@@ -21,7 +21,7 @@ import {
   Users
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 // Helper: Convert Polar to Cartesian coordinates for SVG arc math
 const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {

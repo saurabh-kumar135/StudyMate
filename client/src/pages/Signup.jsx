@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { User, Mail, Lock, UserPlus, Chrome, KeyRound, ArrowLeft, CheckCircle2, RefreshCw, Clock } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -115,20 +115,20 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/api/verify-email/send-otp`, {
+      const response = await axios.post(API_URL + '/api/verify-email/send-otp', {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
         email: formData.email.trim(),
         password: formData.password,
         userType: formData.userType
-      }, { withCredentials: true });
+      }, { withCredentials: true, timeout: 15000 });
 
       if (response.data.success) {
         setStep('otp');
         setTimeLeft(600);
         setCanResend(false);
         setOtp(['', '', '', '', '', '']);
-        setSuccessMessage(response.data.message || `Verification code sent to ${formData.email}! Please check your inbox.`);
+        setSuccessMessage(response.data.message || ('Verification code sent to ' + formData.email + '! Please check your inbox.'));
       }
     } catch (err) {
       const serverMsg = err.response?.data?.error || 
@@ -205,10 +205,10 @@ export default function Signup() {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/verify-email/verify-otp`, {
+      const response = await axios.post(API_URL + '/api/verify-email/verify-otp', {
         email: formData.email.trim(),
         otp: code
-      }, { withCredentials: true });
+      }, { withCredentials: true, timeout: 15000 });
 
       if (response.data.success) {
         setSuccessMessage('Account verified successfully! Redirecting to dashboard...');
@@ -235,9 +235,9 @@ export default function Signup() {
     setError('');
 
     try {
-      const response = await axios.post(`${API_URL}/api/verify-email/resend-otp`, {
+      const response = await axios.post(API_URL + '/api/verify-email/resend-otp', {
         email: formData.email.trim()
-      }, { withCredentials: true });
+      }, { withCredentials: true, timeout: 15000 });
 
       if (response.data.success) {
         setTimeLeft(600);

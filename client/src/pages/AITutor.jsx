@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Send, Bot, User, Loader } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 // Custom styles for markdown rendering
 const markdownStyles = {

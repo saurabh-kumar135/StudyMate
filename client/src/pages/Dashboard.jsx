@@ -14,7 +14,7 @@ import {
   Loader
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 // Format relative time
 const formatRelativeTime = (dateString) => {

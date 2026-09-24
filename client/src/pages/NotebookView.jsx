@@ -4,7 +4,7 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { ArrowLeft, Star, Trash2, Edit3, Loader, BookOpen, Calendar, Tag } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3009';
+import { API_URL } from '../config/api';
 
 // Markdown styles for summary
 const markdownStyles = {
