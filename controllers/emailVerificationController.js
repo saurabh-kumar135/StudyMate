@@ -81,15 +81,10 @@ exports.sendOTP = async (req, res) => {
       });
     }
 
-    console.log('✅ OTP processed successfully for:', email);
-    const successMsg = emailResult.devOtp
-      ? `Verification code dispatched! For instant verification: ${emailResult.devOtp}`
-      : 'Verification code sent to your email! Please check your inbox.';
-
+    console.log('✅ OTP email sent successfully to:', email);
     res.json({
       success: true,
-      message: successMsg,
-      devOtp: emailResult.devOtp || null
+      message: 'Verification code sent to your email! Please check your inbox.'
     });
 
   } catch (error) {
