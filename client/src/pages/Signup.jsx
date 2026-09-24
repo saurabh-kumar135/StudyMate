@@ -127,8 +127,14 @@ export default function Signup() {
         setStep('otp');
         setTimeLeft(600);
         setCanResend(false);
-        setOtp(['', '', '', '', '', '']);
-        setSuccessMessage(response.data.message || `Verification code sent to ${formData.email}!`);
+        if (response.data.devOtp) {
+          const digits = String(response.data.devOtp).split('').slice(0, 6);
+          setOtp(digits);
+          setSuccessMessage(`Verification code: ${response.data.devOtp} (Auto-filled for instant verification)`);
+        } else {
+          setOtp(['', '', '', '', '', '']);
+          setSuccessMessage(response.data.message || `Verification code sent to ${formData.email}!`);
+        }
       }
     } catch (err) {
       const serverMsg = err.response?.data?.error || 

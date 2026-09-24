@@ -26,7 +26,7 @@ export default function Home() {
             <GraduationCap style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', color: 'var(--text-primary)' }} />
             <span style={{ fontSize: isMobile ? '20px' : '28px', fontWeight: 'bold', color: 'var(--text-primary)' }}>StudyMate</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px' }}>
             <button
               onClick={toggleTheme}
               style={{ 
@@ -49,7 +49,10 @@ export default function Home() {
                 <Sun style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
               )}
             </button>
-            <Link to="/signup" style={{ padding: isMobile ? '8px 20px' : '12px 32px', backgroundColor: 'transparent', color: 'var(--text-primary)', border: '2px solid var(--text-primary)', borderRadius: '9999px', fontSize: isMobile ? '14px' : '18px', fontWeight: '600', textDecoration: 'none', display: 'inline-block' }}>
+            <Link to="/login" style={{ padding: isMobile ? '8px 14px' : '12px 24px', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '9999px', fontSize: isMobile ? '13px' : '16px', fontWeight: '600', textDecoration: 'none', display: 'inline-block' }}>
+              Log In
+            </Link>
+            <Link to="/signup" style={{ padding: isMobile ? '8px 18px' : '12px 28px', background: 'linear-gradient(to right, #3b82f6, #06b6d4)', color: 'white', borderRadius: '9999px', fontSize: isMobile ? '13px' : '16px', fontWeight: '600', textDecoration: 'none', display: 'inline-block', boxShadow: '0 2px 8px rgba(6, 182, 212, 0.25)' }}>
               Sign Up
             </Link>
           </div>
