@@ -90,8 +90,9 @@ export default function StudyMaterials() {
     const file = event.target.files[0];
     if (!file) return;
 
-    const allowedTypes = ['application/pdf', 'text/plain'];
-    if (!allowedTypes.includes(file.type)) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const isAllowed = ['pdf', 'txt'].includes(ext) || file.type === 'application/pdf' || file.type === 'text/plain' || file.type.includes('pdf');
+    if (!isAllowed) {
       alert('Please upload PDF or TXT files only');
       return;
     }
@@ -106,7 +107,7 @@ export default function StudyMaterials() {
     formData.append('document', file);
 
     try {
-      const response = await axios.post(`${API_URL}/api/materials/upload`, formData, {
+      const response = await axios.post(API_URL + '/api/materials/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -114,7 +115,8 @@ export default function StudyMaterials() {
         setText(response.data.text);
         setUploadedFile(response.data.filename);
         setSummary('');
-        setNotebookTitle(response.data.filename.replace(/\.[^/.]+$/, ''));
+        const dotIdx = response.data.filename.lastIndexOf('.');
+        setNotebookTitle(dotIdx > 0 ? response.data.filename.slice(0, dotIdx) : response.data.filename);
       } else {
         alert(response.data.error || 'Failed to upload document');
       }
@@ -135,7 +137,7 @@ export default function StudyMaterials() {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/ai/summarize`, { text, length: summaryLength });
+      const response = await axios.post(API_URL + '/api/ai/summarize', { text, length: summaryLength });
       if (response.data.success) {
         setSummary(response.data.summary);
         // Auto-generate title if not set
@@ -163,7 +165,7 @@ export default function StudyMaterials() {
     
     setSaving(true);
     try {
-      const response = await axios.post(`${API_URL}/api/notebooks`, {
+      const response = await axios.post(API_URL + '/api/notebooks', {
         title: titleToSave,
         originalText: text,
         summary: summary,
@@ -177,7 +179,7 @@ export default function StudyMaterials() {
         setShowSaveDialog(false);
         alert('Notebook saved successfully!');
         // Navigate to the saved notebook
-        navigate(`/app/notebook/${response.data.notebook._id}`);
+        navigate('/app/notebook/' + response.data.notebook._id);
       } else {
         alert('Failed to save notebook. Please try again.');
       }

@@ -7,8 +7,33 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const pdfParse = require('pdf-parse');
 const { summarizeText } = require('../utils/geminiService');
+
+// Robust PDF text extractor supporting both pdf-parse v1 and v2
+async function extractPdfText(filePath) {
+  const dataBuffer = fs.readFileSync(filePath);
+  const pdfParsePkg = require('pdf-parse');
+
+  if (pdfParsePkg && typeof pdfParsePkg.PDFParse === 'function') {
+    const uint8 = new Uint8Array(dataBuffer);
+    const parser = new pdfParsePkg.PDFParse(uint8);
+    await parser.load();
+    const result = await parser.getText();
+    return typeof result === 'string' ? result : (result.text || '');
+  }
+
+  if (typeof pdfParsePkg === 'function') {
+    const pdfData = await pdfParsePkg(dataBuffer);
+    return pdfData.text || '';
+  }
+
+  if (pdfParsePkg && typeof pdfParsePkg.default === 'function') {
+    const pdfData = await pdfParsePkg.default(dataBuffer);
+    return pdfData.text || '';
+  }
+
+  throw new Error('Unsupported pdf-parse module format');
+}
 
 // Configure multer for document uploads
 const storage = multer.diskStorage({
@@ -64,10 +89,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
 
     // Extract text based on file type
     if (fileExt === '.pdf') {
-      // Extract text from PDF
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      extractedText = pdfData.text;
+      extractedText = await extractPdfText(filePath);
     } else if (fileExt === '.txt') {
       // Read text file
       extractedText = fs.readFileSync(filePath, 'utf8');
@@ -82,7 +104,9 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     }
 
     // Clean up the file after extraction
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (e) { console.warn('Could not unlink temp file:', e); }
+    }
 
     if (!extractedText || extractedText.trim().length === 0) {
       return res.status(400).json({
@@ -132,15 +156,15 @@ router.post('/upload-and-summarize', upload.single('document'), async (req, res)
 
     // Extract text
     if (fileExt === '.pdf') {
-      const dataBuffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      extractedText = pdfData.text;
+      extractedText = await extractPdfText(filePath);
     } else if (fileExt === '.txt') {
       extractedText = fs.readFileSync(filePath, 'utf8');
     }
 
     // Clean up file
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch (e) { console.warn('Could not unlink temp file:', e); }
+    }
 
     if (!extractedText || extractedText.trim().length === 0) {
       return res.status(400).json({
