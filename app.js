@@ -205,11 +205,12 @@ const io = new Server(server, {
 });
 initStudyRoomSignaling(io);
 
+server.listen(PORT, () => {
+  console.log('Server running on address http://localhost:' + PORT);
+});
+
 mongoose.connect(DB_PATH).then(() => {
   console.log('Connected to Mongo');
-  server.listen(PORT, () => {
-    console.log('Server running on address http://localhost:' + PORT);
-  });
 }).catch(err => {
   console.log('Error while connecting to Mongo: ', err);
 });
