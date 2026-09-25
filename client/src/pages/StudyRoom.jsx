@@ -536,16 +536,16 @@ export default function StudyRoom() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Create Room Card */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl">
-              <div className="flex items-center gap-3 mb-5">
-                <div className="p-2.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
-                  <Video className="w-6 h-6" />
+          {routeRoomId ? (
+            /* Dedicated Direct-Join Card for Shared Links */
+            <div className="max-w-md mx-auto bg-slate-900/90 border border-purple-500/40 rounded-2xl p-8 backdrop-blur-xl shadow-2xl">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                  <Users className="w-7 h-7" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Create New Session</h2>
-                  <p className="text-xs text-slate-400">Launch a private study call and invite your peers</p>
+                  <h2 className="text-xl font-bold text-white">Join Study Room</h2>
+                  <p className="text-xs text-purple-300 font-mono mt-0.5">Code: {routeRoomId}</p>
                 </div>
               </div>
 
@@ -559,7 +559,7 @@ export default function StudyRoom() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     placeholder="Enter your name"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
                   />
                 </div>
 
@@ -570,85 +570,160 @@ export default function StudyRoom() {
                   <select
                     value={userRole}
                     onChange={(e) => setUserRole(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
                   >
                     <option value="student">Student / Learner</option>
                     <option value="teacher">Teacher / Mentor</option>
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Study Topic
-                  </label>
-                  <input
-                    type="text"
-                    value={roomTopic}
-                    onChange={(e) => setRoomTopic(e.target.value)}
-                    placeholder="e.g. Graph Algorithms, Machine Learning"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
-                  />
-                </div>
-
                 <button
-                  onClick={() => {
-                    const newId = 'study_' + Math.random().toString(36).substr(2, 6);
-                    handleJoinCall(newId);
-                  }}
-                  className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                  onClick={() => handleJoinCall(routeRoomId)}
+                  className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2 text-base"
                 >
-                  <Video className="w-5 h-5" /> Start Study Room
+                  <Video className="w-5 h-5" /> Join Room Now
+                </button>
+              </div>
+
+              <div className="mt-6 p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <span>Want to create a different room?</span>
+                <button
+                  onClick={() => navigate('/study-room')}
+                  className="text-purple-400 hover:underline font-medium"
+                >
+                  Create New
                 </button>
               </div>
             </div>
-
-            {/* Join Existing Room Card */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between">
-              <div>
+          ) : (
+            /* Normal Dual-Card Lobby */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              {/* Create Room Card */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl">
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
-                    <Users className="w-6 h-6" />
+                  <div className="p-2.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                    <Video className="w-6 h-6" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-white">Join by Room Code</h2>
-                    <p className="text-xs text-slate-400">Enter a 6-digit code or link shared by your partner</p>
+                    <h2 className="text-lg font-bold text-white">Create New Session</h2>
+                    <p className="text-xs text-slate-400">Launch a private study call and invite your peers</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                      Room Code
+                      Your Name
                     </label>
                     <input
                       type="text"
-                      value={roomId}
-                      onChange={(e) => setRoomId(e.target.value)}
-                      placeholder="e.g. study_9x2b3f"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 font-mono transition-colors"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Role
+                    </label>
+                    <select
+                      value={userRole}
+                      onChange={(e) => setUserRole(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    >
+                      <option value="student">Student / Learner</option>
+                      <option value="teacher">Teacher / Mentor</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Study Topic
+                    </label>
+                    <input
+                      type="text"
+                      value={roomTopic}
+                      onChange={(e) => setRoomTopic(e.target.value)}
+                      placeholder="e.g. Graph Algorithms, Machine Learning"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
                     />
                   </div>
 
                   <button
-                    disabled={!roomId.trim()}
-                    onClick={() => handleJoinCall(roomId)}
-                    className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-700"
+                    onClick={() => {
+                      const newId = 'study_' + Math.random().toString(36).substr(2, 6);
+                      handleJoinCall(newId);
+                    }}
+                    className="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
                   >
-                    <BookOpen className="w-5 h-5 text-purple-400" /> Join Call
+                    <Video className="w-5 h-5" /> Start New Room
                   </button>
                 </div>
               </div>
 
-              {/* Security info */}
-              <div className="mt-8 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-400">
-                  <span className="text-slate-200 font-medium">Direct Peer-to-Peer Encrypted</span>:
-                  Media streams route directly between devices with zero intermediary recording.
+              {/* Join Existing Room Card */}
+              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Join by Room Code</h2>
+                      <p className="text-xs text-slate-400">Enter a 6-digit code or link shared by your partner</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                        Your Name
+                      </label>
+                      <input
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                        Room Code
+                      </label>
+                      <input
+                        type="text"
+                        value={roomId}
+                        onChange={(e) => setRoomId(e.target.value)}
+                        placeholder="e.g. study_9x2b3f"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 font-mono transition-colors"
+                      />
+                    </div>
+
+                    <button
+                      disabled={!roomId.trim()}
+                      onClick={() => handleJoinCall(roomId)}
+                      className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 border border-slate-700"
+                    >
+                      <BookOpen className="w-5 h-5 text-purple-400" /> Join Call
+                    </button>
+                  </div>
+                </div>
+
+                {/* Security info */}
+                <div className="mt-8 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5">
+                  <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-slate-400">
+                    <span className="text-slate-200 font-medium">Direct Peer-to-Peer Encrypted</span>:
+                    Media streams route directly between devices with zero intermediary recording.
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
