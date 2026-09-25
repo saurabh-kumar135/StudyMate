@@ -7,7 +7,7 @@ import {
   Video, VideoOff, Mic, MicOff, Monitor, MonitorOff,
   PhoneOff, MessageSquare, Timer, Copy, Check, Users,
   Play, Pause, RotateCcw, Sparkles, BookOpen, ShieldCheck,
-  Send, X
+  Send, X, FileText, Download, Subtitles, Loader2, Award
 } from 'lucide-react';
 
 export default function StudyRoom() {
@@ -33,16 +33,31 @@ export default function StudyRoom() {
 
   // Chat & Timer
   const [chatOpen, setChatOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState('chat'); // 'chat' | 'transcript'
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [chatToast, setChatToast] = useState(null);
   const [timerOpen, setTimerOpen] = useState(true);
   const [timerState, setTimerState] = useState({ timeLeft: 25 * 60, isRunning: false, mode: 'study' });
+
+  // Live Transcription & AI Notes
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  const [transcriptDrawerOpen, setTranscriptDrawerOpen] = useState(false);
+  const [transcriptEntries, setTranscriptEntries] = useState([]);
+  const [currentCaption, setCurrentCaption] = useState(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [aiSummaryData, setAiSummaryData] = useState(null);
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
   // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const socketRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const transcriptBottomRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
@@ -68,6 +83,89 @@ export default function StudyRoom() {
       remoteVideoRef.current.play().catch((e) => console.log('remote play error:', e));
     }
   }, [inCall]);
+
+  // Live Speech Recognition Engine (Web Speech API)
+  useEffect(() => {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) return;
+
+    if (inCall && captionsEnabled) {
+      try {
+        const recognition = new SpeechRec();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = (event) => {
+          let interimText = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              if (transcript.trim() && socketRef.current) {
+                socketRef.current.emit('send-transcript-speech', {
+                  roomId,
+                  text: transcript.trim(),
+                  isFinal: true
+                });
+              }
+            } else {
+              interimText += transcript;
+            }
+          }
+          if (interimText.trim() && socketRef.current) {
+            socketRef.current.emit('send-transcript-speech', {
+              roomId,
+              text: interimText.trim(),
+              isFinal: false
+            });
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.warn('Speech recognition warning:', event.error);
+        };
+
+        recognition.onend = () => {
+          if (inCall && captionsEnabled && recognitionRef.current) {
+            try {
+              recognition.start();
+            } catch (e) {}
+          }
+        };
+
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch (err) {
+        console.warn('Could not start speech recognition:', err);
+      }
+    } else {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+    };
+  }, [inCall, captionsEnabled, roomId]);
+
+  // Auto-dismiss floating live subtitle after 5 seconds of silence
+  useEffect(() => {
+    if (currentCaption) {
+      const timer = setTimeout(() => {
+        setCurrentCaption(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentCaption]);
 
   // Load user info from localStorage or defaults
   useEffect(() => {
@@ -272,6 +370,18 @@ export default function StudyRoom() {
     socket.on('chat-message', (msg) => {
       setChatMessages(prev => [...prev, msg]);
       setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setUnreadChatCount(prev => prev + 1);
+      setChatToast(msg);
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = setTimeout(() => setChatToast(null), 5000);
+    });
+
+    socket.on('transcript-entry', (entry) => {
+      if (entry.isFinal) {
+        setTranscriptEntries(prev => [...prev, entry]);
+        setTimeout(() => transcriptBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }
+      setCurrentCaption(entry);
     });
 
     socket.on('peer-media-toggled', ({ type, enabled }) => {
@@ -486,6 +596,56 @@ export default function StudyRoom() {
       message: chatInput
     });
     setChatInput('');
+  };
+
+  // Summarize Transcript with Gemini AI
+  const handleSummarizeSession = async () => {
+    if (transcriptEntries.length === 0) {
+      alert('No speech recorded yet. Turn on captions (CC) and speak into the call to generate a transcript first!');
+      return;
+    }
+    setIsSummarizing(true);
+    setSummaryModalOpen(true);
+    try {
+      const fullTranscript = transcriptEntries
+        .map(e => '[' + e.timestamp + '] ' + e.speaker + ' (' + e.role + '): ' + e.text)
+        .join('\n');
+
+      const res = await axios.post(API_URL + '/api/study-rooms/summarize-transcript', {
+        transcriptText: fullTranscript,
+        topic: roomTopic
+      });
+
+      if (res.data && res.data.success && res.data.data) {
+        setAiSummaryData(res.data.data);
+      } else {
+        alert(res.data.error || 'Failed to generate study summary.');
+      }
+    } catch (err) {
+      console.error('Error generating AI study summary:', err);
+      alert('Could not generate AI summary at this time.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  // Download Transcript as text file
+  const handleDownloadTranscript = () => {
+    if (transcriptEntries.length === 0) return;
+    const header = 'StudyMate Virtual Study Session Transcript\n' +
+      'Topic: ' + roomTopic + '\n' +
+      'Room Code: ' + roomId + '\n' +
+      'Date: ' + new Date().toLocaleString() + '\n' +
+      '------------------------------------------------------------\n\n';
+    const lines = transcriptEntries.map(e => '[' + e.timestamp + '] ' + e.speaker + ' (' + e.role + '):\n' + e.text + '\n');
+    const content = header + lines.join('\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'StudyMate_' + roomId + '_Transcript.txt';
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Timer controls
@@ -856,13 +1016,68 @@ export default function StudyRoom() {
           </div>
         </main>
 
-        {/* Live In-Call Chat Drawer */}
+        {/* Floating Closed Captions Overlay (Google Meet Style) */}
+        {captionsEnabled && currentCaption && (
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 max-w-2xl px-5 py-3 rounded-2xl bg-slate-950/90 backdrop-blur-md border border-slate-700/80 shadow-2xl flex items-center gap-3 z-30 transition-all">
+            <span className="text-xs font-bold text-blue-400 shrink-0">
+              {currentCaption.speaker} ({currentCaption.role}):
+            </span>
+            <span className="text-sm text-white font-medium">
+              "{currentCaption.text}"
+            </span>
+          </div>
+        )}
+
+        {/* Floating Chat Notification Toast */}
+        {chatToast && (!chatOpen || sidebarTab !== 'chat') && (
+          <div
+            onClick={() => {
+              setChatOpen(true);
+              setSidebarTab('chat');
+              setUnreadChatCount(0);
+              setChatToast(null);
+            }}
+            className="absolute top-4 right-4 max-w-xs bg-slate-900/95 border border-indigo-500/60 rounded-2xl p-3.5 shadow-2xl backdrop-blur-xl cursor-pointer hover:border-indigo-400 z-40 transition-all animate-bounce"
+          >
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="font-bold text-indigo-400">{chatToast.sender}</span>
+              <span className="text-[10px] text-slate-500">{chatToast.timestamp}</span>
+            </div>
+            <p className="text-xs text-slate-200 line-clamp-2">{chatToast.message}</p>
+          </div>
+        )}
+
+        {/* Right Collaboration Drawer (Chat + Live Transcript) */}
         {chatOpen && (
           <aside className="w-80 md:w-96 border-l border-slate-800 bg-slate-900/95 backdrop-blur-xl flex flex-col z-20 shadow-2xl">
+            {/* Drawer Header with Dual Tabs */}
             <div className="h-14 px-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <MessageSquare className="w-4 h-4 text-blue-400" /> Study Room Chat
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setSidebarTab('chat');
+                    setUnreadChatCount(0);
+                  }}
+                  className={'px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ' + (sidebarTab === 'chat' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white')}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" /> Chat
+                  {unreadChatCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setSidebarTab('transcript')}
+                  className={'px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ' + (sidebarTab === 'transcript' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white')}
+                >
+                  <FileText className="w-3.5 h-3.5" /> Transcript
+                  {transcriptEntries.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 bg-purple-900/80 rounded-full text-purple-200">
+                      {transcriptEntries.length}
+                    </span>
+                  )}
+                </button>
               </div>
+
               <button
                 onClick={() => setChatOpen(false)}
                 className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
@@ -871,45 +1086,212 @@ export default function StudyRoom() {
               </button>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto space-y-3">
-              {chatMessages.length === 0 ? (
-                <div className="text-center text-xs text-slate-500 py-12">
-                  No messages yet. Ask questions or share reference notes here!
+            {/* TAB 1: In-Call Live Chat */}
+            {sidebarTab === 'chat' && (
+              <>
+                <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                  {chatMessages.length === 0 ? (
+                    <div className="text-center text-xs text-slate-500 py-12">
+                      No messages yet. Ask questions or share reference notes here!
+                    </div>
+                  ) : (
+                    chatMessages.map((m) => (
+                      <div key={m.id} className="text-xs">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span className="font-bold text-blue-400">{m.sender}</span>
+                          <span className="text-[10px] text-slate-500">{m.timestamp}</span>
+                        </div>
+                        <div className="bg-slate-800/70 rounded-xl p-2.5 text-slate-200 leading-relaxed border border-slate-700/40">
+                          {m.message}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={chatBottomRef} />
                 </div>
-              ) : (
-                chatMessages.map((m) => (
-                  <div key={m.id} className="text-xs">
-                    <div className="flex items-baseline justify-between mb-1">
-                      <span className="font-bold text-blue-400">{m.sender}</span>
-                      <span className="text-[10px] text-slate-500">{m.timestamp}</span>
-                    </div>
-                    <div className="bg-slate-800/70 rounded-xl p-2.5 text-slate-200 leading-relaxed border border-slate-700/40">
-                      {m.message}
-                    </div>
-                  </div>
-                ))
-              )}
-              <div ref={chatBottomRef} />
-            </div>
 
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-              />
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+                <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-800 flex gap-2">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-xl transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+              </>
+            )}
+
+            {/* TAB 2: Live Conversation Transcript & AI Notes */}
+            {sidebarTab === 'transcript' && (
+              <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                {/* Actions Toolbar */}
+                <div className="p-3 border-b border-slate-800 bg-slate-950/40 flex items-center justify-between gap-2">
+                  <button
+                    onClick={handleSummarizeSession}
+                    disabled={transcriptEntries.length === 0 || isSummarizing}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20"
+                  >
+                    {isSummarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
+                    {isSummarizing ? 'Analyzing...' : 'AI Study Notes'}
+                  </button>
+                  <button
+                    onClick={handleDownloadTranscript}
+                    disabled={transcriptEntries.length === 0}
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-xs font-medium border border-slate-700 flex items-center gap-1"
+                    title="Export transcript to file"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Export
+                  </button>
+                </div>
+
+                {/* Transcript Stream Timeline */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                  {transcriptEntries.length === 0 ? (
+                    <div className="text-center text-xs text-slate-500 py-12">
+                      <p className="mb-2 font-medium text-slate-400">No transcript recorded yet</p>
+                      <p className="text-[11px] max-w-xs mx-auto">
+                        Make sure Captions (<span className="text-purple-400 font-semibold">CC</span>) are turned on at the bottom. Spoken words will transcribe here in real time.
+                      </p>
+                    </div>
+                  ) : (
+                    transcriptEntries.map((t) => (
+                      <div key={t.id} className="text-xs">
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span className="font-bold text-purple-400">{t.speaker} <span className="text-[10px] text-slate-500 font-normal">({t.role})</span></span>
+                          <span className="text-[10px] text-slate-500">{t.timestamp}</span>
+                        </div>
+                        <div className="bg-slate-800/40 rounded-xl p-2.5 text-slate-200 leading-relaxed border border-slate-700/30">
+                          {t.text}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={transcriptBottomRef} />
+                </div>
+
+                {/* Live Speech Status Indicator */}
+                <div className="p-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span className={'w-2 h-2 rounded-full ' + (captionsEnabled ? 'bg-emerald-400 animate-ping' : 'bg-slate-600')}></span>
+                    <span>{captionsEnabled ? 'Live speech listening...' : 'Captions paused (Click CC to enable)'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </aside>
         )}
       </div>
+
+      {/* AI Summary Modal Dialog */}
+      {summaryModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="max-w-2xl w-full bg-slate-900 border border-purple-500/40 rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-base font-bold text-white">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                AI Study Notes & Lecture Digest
+              </div>
+              <button
+                onClick={() => setSummaryModalOpen(false)}
+                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 overflow-y-auto space-y-6 text-sm">
+              {isSummarizing && (
+                <div className="py-16 flex flex-col items-center justify-center text-center">
+                  <Loader2 className="w-8 h-8 text-purple-400 animate-spin mb-3" />
+                  <p className="text-white font-semibold">Gemini is synthesizing your session notes...</p>
+                  <p className="text-xs text-slate-400 mt-1">Analyzing speaker discussion, extracting key definitions, and drafting flashcards.</p>
+                </div>
+              )}
+
+              {!isSummarizing && aiSummaryData && (
+                <>
+                  {/* Executive Summary */}
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2">
+                      Session Summary
+                    </h3>
+                    <p className="text-slate-300 leading-relaxed bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                      {aiSummaryData.summary}
+                    </p>
+                  </div>
+
+                  {/* Key Concepts */}
+                  {aiSummaryData.keyConcepts && aiSummaryData.keyConcepts.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">
+                        Key Concepts Covered
+                      </h3>
+                      <ul className="space-y-2">
+                        {aiSummaryData.keyConcepts.map((c, i) => (
+                          <li key={i} className="flex items-start gap-2 text-slate-300 text-xs bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0"></span>
+                            <span>{c}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Action Items */}
+                  {aiSummaryData.actionItems && aiSummaryData.actionItems.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">
+                        Action Items & Follow-Ups
+                      </h3>
+                      <ul className="space-y-2">
+                        {aiSummaryData.actionItems.map((a, i) => (
+                          <li key={i} className="flex items-start gap-2 text-slate-300 text-xs bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/80">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" />
+                            <span>{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Revision Flashcards */}
+                  {aiSummaryData.flashcards && aiSummaryData.flashcards.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+                        Quick Revision Flashcards
+                      </h3>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {aiSummaryData.flashcards.map((f, i) => (
+                          <div key={i} className="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                            <div className="font-semibold text-xs text-white mb-1">Q: {f.question}</div>
+                            <div className="text-xs text-slate-400">A: {f.answer}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end">
+              <button
+                onClick={() => setSummaryModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white transition-colors"
+              >
+                Close Notes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Floating Control Dock */}
       <footer className="h-20 border-t border-slate-800/80 px-4 flex items-center justify-center bg-slate-900/80 backdrop-blur-xl z-20">
@@ -941,13 +1323,51 @@ export default function StudyRoom() {
             {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
           </button>
 
-          {/* Toggle Chat */}
+          {/* Toggle Closed Captions / Speech Recognition */}
           <button
-            onClick={() => setChatOpen(!chatOpen)}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (chatOpen ? 'bg-indigo-600 text-white border border-indigo-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            onClick={() => setCaptionsEnabled(!captionsEnabled)}
+            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (captionsEnabled ? 'bg-purple-600 text-white border border-purple-400 ring-2 ring-purple-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            title={captionsEnabled ? 'Turn Off Closed Captions' : 'Turn On Live Speech Captions (CC)'}
+          >
+            <Subtitles className="w-5 h-5" />
+          </button>
+
+          {/* Toggle In-Call Chat */}
+          <button
+            onClick={() => {
+              if (chatOpen && sidebarTab === 'chat') {
+                setChatOpen(false);
+              } else {
+                setChatOpen(true);
+                setSidebarTab('chat');
+                setUnreadChatCount(0);
+              }
+            }}
+            className={'relative p-3.5 rounded-2xl transition-all shadow-lg ' + (chatOpen && sidebarTab === 'chat' ? 'bg-blue-600 text-white border border-blue-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title="Toggle In-Call Chat"
           >
             <MessageSquare className="w-5 h-5" />
+            {unreadChatCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
+
+          {/* Toggle Live Transcript Drawer */}
+          <button
+            onClick={() => {
+              if (chatOpen && sidebarTab === 'transcript') {
+                setChatOpen(false);
+              } else {
+                setChatOpen(true);
+                setSidebarTab('transcript');
+              }
+            }}
+            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (chatOpen && sidebarTab === 'transcript' ? 'bg-purple-600 text-white border border-purple-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            title="Open Live Conversation Transcript & AI Notes"
+          >
+            <FileText className="w-5 h-5" />
           </button>
 
           {/* Leave Call */}

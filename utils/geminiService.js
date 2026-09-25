@@ -158,9 +158,48 @@ Include:
   }
 }
 
+/**
+ * Summarize Live Study Call Transcript
+ */
+async function summarizeStudySession(transcriptText, topic = 'General Study Session') {
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = 'You are an expert AI Academic Assistant for StudyMate.\n' +
+      'Analyze the following transcript from a live study session between student(s) and teacher(s) on the topic "' + topic + '".\n\n' +
+      'Transcript:\n' + transcriptText + '\n\n' +
+      'Please provide a well-structured JSON response with the following structure:\n' +
+      '{\n' +
+      '  "summary": "Concise 2-3 paragraph summary of the session",\n' +
+      '  "keyConcepts": ["Concept 1 with short explanation", "Concept 2 with short explanation"],\n' +
+      '  "actionItems": ["Action item or homework 1", "Action item 2"],\n' +
+      '  "flashcards": [\n' +
+      '    { "question": "Question 1", "answer": "Answer 1" },\n' +
+      '    { "question": "Question 2", "answer": "Answer 2" }\n' +
+      '  ]\n' +
+      '}';
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      return { success: true, data: parsed };
+    } catch (parseErr) {
+      return { success: true, data: { summary: text, keyConcepts: [], actionItems: [], flashcards: [] } };
+    }
+  } catch (error) {
+    console.error('Session Summarization Error:', error);
+    return {
+      success: false,
+      error: 'Failed to generate AI study session summary.'
+    };
+  }
+}
+
 module.exports = {
   chatWithAI,
   summarizeText,
   generateQuiz,
-  explainConcept
+  explainConcept,
+  summarizeStudySession
 };

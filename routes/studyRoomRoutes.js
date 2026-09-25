@@ -40,4 +40,20 @@ router.post('/create', (req, res) => {
   });
 });
 
+// POST /api/study-rooms/summarize-transcript - AI-powered session summarizer
+router.post('/summarize-transcript', async (req, res) => {
+  try {
+    const { transcriptText, topic } = req.body;
+    if (!transcriptText || !transcriptText.trim()) {
+      return res.status(400).json({ success: false, message: 'Transcript text is required' });
+    }
+    const { summarizeStudySession } = require('../utils/geminiService');
+    const result = await summarizeStudySession(transcriptText, topic);
+    res.json(result);
+  } catch (err) {
+    console.error('Transcript summary endpoint error:', err);
+    res.status(500).json({ success: false, error: 'Failed to summarize transcript' });
+  }
+});
+
 module.exports = router;

@@ -92,6 +92,21 @@ function initStudyRoomSignaling(io) {
       io.in(roomId).emit('chat-message', chatItem);
     });
 
+    // Real-time speech transcript and closed captions relay
+    socket.on('send-transcript-speech', ({ roomId, text, isFinal }) => {
+      if (!roomId || !text) return;
+      const transcriptItem = {
+        id: 'tr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        speaker: socket.user?.name || 'Anonymous',
+        role: socket.user?.role || 'student',
+        senderId: socket.id,
+        text: text.trim(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isFinal: !!isFinal
+      };
+      io.in(roomId).emit('transcript-entry', transcriptItem);
+    });
+
     // Toggle Camera / Mic status notification
     socket.on('toggle-media-status', ({ roomId, type, enabled }) => {
       const roomData = rooms.get(roomId);
