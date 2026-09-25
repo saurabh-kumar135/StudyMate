@@ -7,7 +7,8 @@ import {
   Video, VideoOff, Mic, MicOff, Monitor, MonitorOff,
   PhoneOff, MessageSquare, Timer, Copy, Check, Users,
   Play, Pause, RotateCcw, Sparkles, BookOpen, ShieldCheck,
-  Send, X, FileText, Download, Subtitles, Loader2, Award
+  Send, X, FileText, Download, Subtitles, Loader2, Award,
+  PenTool, Eraser, Trash2
 } from 'lucide-react';
 
 export default function StudyRoom() {
@@ -50,10 +51,20 @@ export default function StudyRoom() {
   const [aiSummaryData, setAiSummaryData] = useState(null);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
+  // Collaborative Whiteboard
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  const [brushColor, setBrushColor] = useState('#38bdf8');
+  const [brushSize, setBrushSize] = useState(4);
+  const [isEraser, setIsEraser] = useState(false);
+
   // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const remoteStreamRef = useRef(null);
+  const canvasRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const lastCoordRef = useRef({ normX: 0, normY: 0 });
+  const strokesRef = useRef([]);
   const socketRef = useRef(null);
   const recognitionRef = useRef(null);
   const transcriptBottomRef = useRef(null);
@@ -72,7 +83,7 @@ export default function StudyRoom() {
     { urls: 'stun:stun.relay.metered.ca:80' }
   ]);
 
-  // Ensure video elements get streams attached upon mounting
+  // Ensure video elements get streams attached upon mounting or view mode toggle
   useEffect(() => {
     if (inCall && localVideoRef.current && localStreamRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
@@ -82,7 +93,7 @@ export default function StudyRoom() {
       remoteVideoRef.current.srcObject = remoteStreamRef.current;
       remoteVideoRef.current.play().catch((e) => console.log('remote play error:', e));
     }
-  }, [inCall]);
+  }, [inCall, whiteboardOpen]);
 
   // Live Speech Recognition Engine (Web Speech API)
   useEffect(() => {
@@ -311,8 +322,12 @@ export default function StudyRoom() {
       });
     });
 
-    socket.on('room-joined', async ({ participants, timer }) => {
+    socket.on('room-joined', async ({ participants, timer, whiteboardStrokes }) => {
       if (timer) setTimerState(timer);
+      if (whiteboardStrokes && whiteboardStrokes.length > 0) {
+        strokesRef.current = [...whiteboardStrokes];
+        redrawCanvas();
+      }
       if (participants && participants.length > 0) {
         const peer = participants[0];
         setRemoteUserName(peer.user?.name || 'Study Partner');
@@ -394,6 +409,16 @@ export default function StudyRoom() {
 
     socket.on('timer-updated', (newTimer) => {
       setTimerState(newTimer);
+    });
+
+    socket.on('whiteboard-draw', (stroke) => {
+      strokesRef.current.push(stroke);
+      drawSingleStrokeOnCanvas(stroke);
+    });
+
+    socket.on('whiteboard-clear', () => {
+      strokesRef.current = [];
+      clearCanvasOnly();
     });
 
     socket.on('user-left', ({ userName: leftUser }) => {
@@ -582,9 +607,149 @@ export default function StudyRoom() {
 
     setInCall(false);
     setRemoteConnected(false);
+    setWhiteboardOpen(false);
+    strokesRef.current = [];
     remoteStreamRef.current = null;
     iceCandidatesQueueRef.current = [];
     navigate('/study-room');
+  };
+
+  // Single stroke renderer using normalized (0..1) coordinates
+  const drawSingleStrokeOnCanvas = (stroke) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = stroke.size || 4;
+
+    if (stroke.isEraser) {
+      ctx.strokeStyle = '#020617'; // slate-950 canvas background
+      ctx.lineWidth = (stroke.size || 4) * 3;
+    } else {
+      ctx.strokeStyle = stroke.color || '#38bdf8';
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(stroke.prevX * w, stroke.prevY * h);
+    ctx.lineTo(stroke.currX * w, stroke.currY * h);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  const clearCanvasOnly = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const redrawCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    clearCanvasOnly();
+    if (strokesRef.current && strokesRef.current.length > 0) {
+      strokesRef.current.forEach((stroke) => {
+        drawSingleStrokeOnCanvas(stroke);
+      });
+    }
+  };
+
+  // Sync canvas dimensions when whiteboard opens
+  useEffect(() => {
+    if (whiteboardOpen && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        redrawCanvas();
+      }
+    }
+  }, [whiteboardOpen]);
+
+  const getCoordinatesFromEvent = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+    return {
+      normX: rect.width > 0 ? x / rect.width : 0,
+      normY: rect.height > 0 ? y / rect.height : 0
+    };
+  };
+
+  const startDrawing = (e) => {
+    const coords = getCoordinatesFromEvent(e);
+    if (!coords) return;
+    isDrawingRef.current = true;
+    lastCoordRef.current = coords;
+  };
+
+  const drawMove = (e) => {
+    if (!isDrawingRef.current) return;
+    const coords = getCoordinatesFromEvent(e);
+    if (!coords) return;
+
+    const stroke = {
+      prevX: lastCoordRef.current.normX,
+      prevY: lastCoordRef.current.normY,
+      currX: coords.normX,
+      currY: coords.normY,
+      color: brushColor,
+      size: brushSize,
+      isEraser: isEraser
+    };
+
+    strokesRef.current.push(stroke);
+    drawSingleStrokeOnCanvas(stroke);
+    lastCoordRef.current = coords;
+
+    if (socketRef.current && inCall) {
+      socketRef.current.emit('whiteboard-draw', {
+        roomId,
+        stroke
+      });
+    }
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+  };
+
+  const handleClearWhiteboard = () => {
+    strokesRef.current = [];
+    clearCanvasOnly();
+    if (socketRef.current && inCall) {
+      socketRef.current.emit('whiteboard-clear', { roomId });
+    }
+  };
+
+  const handleDownloadWhiteboard = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const imageURL = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = imageURL;
+    link.download = 'StudyMate-Whiteboard-' + roomId + '-' + Date.now() + '.png';
+    link.click();
   };
 
   // Send Chat Message
@@ -957,63 +1122,192 @@ export default function StudyRoom() {
 
       {/* Main Video Stage & Chat Drawer */}
       <div className="flex-1 relative flex overflow-hidden">
-        {/* Video Canvas Stage */}
-        <main className="flex-1 p-4 flex flex-col items-center justify-center gap-4">
-          <div className="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
-            {/* Remote Peer Stream */}
-            <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              {!remoteConnected && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-center p-6">
-                  <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3">
-                    <Users className="w-8 h-8 text-slate-400 animate-pulse" />
+        {/* Video Canvas Stage / Collaborative Whiteboard Stage */}
+        <main className="flex-1 p-4 flex flex-col items-center justify-center gap-4 relative overflow-hidden">
+          {whiteboardOpen ? (
+            <div className="relative w-full h-full max-w-6xl bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col">
+              {/* Whiteboard Top Toolbar */}
+              <div className="min-h-14 px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-wrap gap-3 z-10">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+                    Collaborative Whiteboard
                   </div>
-                  <h3 className="text-base font-semibold text-slate-200">Waiting for peer to connect</h3>
-                  <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                    Share your room code (<span className="text-blue-400 font-mono">{roomId}</span>) with your classmate or teacher to begin.
-                  </p>
+                  <span className="text-[11px] text-slate-400 hidden sm:inline">Live Canvas Sync</span>
+                </div>
+
+                {/* Drawing Controls */}
+                <div className="flex items-center gap-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 flex-wrap">
+                  {/* Color Swatches */}
+                  {['#ffffff', '#38bdf8', '#34d399', '#fbbf24', '#f43f5e', '#c084fc'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        setBrushColor(color);
+                        setIsEraser(false);
+                      }}
+                      style={{ backgroundColor: color }}
+                      className={'w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-transform ' + (!isEraser && brushColor === color ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-slate-950' : 'hover:scale-110 opacity-80 hover:opacity-100')}
+                      title={'Color ' + color}
+                    />
+                  ))}
+
+                  <div className="w-[1px] h-5 bg-slate-800 mx-1"></div>
+
+                  {/* Stroke Sizes */}
+                  {[2, 4, 8, 14].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setBrushSize(size)}
+                      className={'px-2 py-0.5 rounded-md text-xs font-bold transition-all ' + (brushSize === size ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white')}
+                      title={'Stroke width ' + size + 'px'}
+                    >
+                      {size + 'px'}
+                    </button>
+                  ))}
+
+                  <div className="w-[1px] h-5 bg-slate-800 mx-1"></div>
+
+                  {/* Eraser Button */}
                   <button
-                    onClick={copyRoomLink}
-                    className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                    onClick={() => setIsEraser(!isEraser)}
+                    className={'p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ' + (isEraser ? 'bg-amber-600 text-white shadow' : 'text-slate-400 hover:text-white')}
+                    title="Eraser tool"
                   >
-                    <Copy className="w-3.5 h-3.5" /> Copy Invite Code
+                    <Eraser className="w-4 h-4" />
+                  </button>
+
+                  {/* Clear Board */}
+                  <button
+                    onClick={handleClearWhiteboard}
+                    className="p-1.5 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                    title="Clear entire whiteboard"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+
+                  {/* Download Sketch */}
+                  <button
+                    onClick={handleDownloadWhiteboard}
+                    className="p-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+                    title="Download whiteboard diagram as PNG"
+                  >
+                    <Download className="w-4 h-4" />
                   </button>
                 </div>
-              )}
-              {remoteConnected && (
-                <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                  {remoteUserName}
-                </div>
-              )}
-            </div>
 
-            {/* Local User Stream */}
-            <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-              />
-              {isVideoOff && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                  <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
-                  <span className="text-xs font-medium">Camera Off</span>
+                {/* Return to Full Video View */}
+                <button
+                  onClick={() => setWhiteboardOpen(false)}
+                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                  title="Close Whiteboard (Return to Video Grid)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Whiteboard Interactive Canvas */}
+              <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden cursor-crosshair">
+                <canvas
+                  ref={canvasRef}
+                  onMouseDown={startDrawing}
+                  onMouseMove={drawMove}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={drawMove}
+                  onTouchEnd={stopDrawing}
+                  className="w-full h-full block touch-none"
+                />
+
+                {/* Floating Corner PiP Video Tiles */}
+                <div className="absolute bottom-4 right-4 flex flex-col sm:flex-row gap-3 pointer-events-auto z-20">
+                  {/* Remote Peer Mini PiP */}
+                  <div className="relative w-36 h-24 sm:w-44 sm:h-28 bg-slate-900 rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-2 py-0.5 rounded text-[10px] text-slate-300 font-medium truncate max-w-[90%]">
+                      {remoteConnected ? remoteUserName : 'Waiting for peer...'}
+                    </div>
+                  </div>
+
+                  {/* Local User Mini PiP */}
+                  <div className="relative w-36 h-24 sm:w-44 sm:h-28 bg-slate-900 rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover transform -scale-x-100"
+                    />
+                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-2 py-0.5 rounded text-[10px] text-slate-300 font-medium">
+                      You
+                    </div>
+                  </div>
                 </div>
-              )}
-              <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
-                <span className="text-blue-400 font-bold">{userName}</span> (You)
-                {isAudioMuted && <MicOff className="w-3.5 h-3.5 text-red-400 ml-1" />}
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
+              {/* Remote Peer Stream */}
+              <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                {!remoteConnected && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-center p-6">
+                    <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3">
+                      <Users className="w-8 h-8 text-slate-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-200">Waiting for peer to connect</h3>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                      Share your room code (<span className="text-blue-400 font-mono">{roomId}</span>) with your classmate or teacher to begin.
+                    </p>
+                    <button
+                      onClick={copyRoomLink}
+                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy Invite Code
+                    </button>
+                  </div>
+                )}
+                {remoteConnected && (
+                  <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                    {remoteUserName}
+                  </div>
+                )}
+              </div>
+
+              {/* Local User Stream */}
+              <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover transform -scale-x-100"
+                />
+                {isVideoOff && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
+                    <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
+                    <span className="text-xs font-medium">Camera Off</span>
+                  </div>
+                )}
+                <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
+                  <span className="text-blue-400 font-bold">{userName}</span> (You)
+                  {isAudioMuted && <MicOff className="w-3.5 h-3.5 text-red-400 ml-1" />}
+                </div>
+              </div>
+            </div>
+          )}
         </main>
 
         {/* Floating Closed Captions Overlay (Google Meet Style) */}
@@ -1321,6 +1615,15 @@ export default function StudyRoom() {
             title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
           >
             {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+          </button>
+
+          {/* Toggle Collaborative Whiteboard */}
+          <button
+            onClick={() => setWhiteboardOpen(!whiteboardOpen)}
+            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (whiteboardOpen ? 'bg-sky-600 text-white border border-sky-400 ring-2 ring-sky-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            title={whiteboardOpen ? 'Exit Whiteboard' : 'Open Collaborative Real-Time Whiteboard'}
+          >
+            <PenTool className="w-5 h-5" />
           </button>
 
           {/* Toggle Closed Captions / Speech Recognition */}

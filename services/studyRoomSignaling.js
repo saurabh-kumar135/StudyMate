@@ -21,7 +21,8 @@ function initStudyRoomSignaling(io) {
       if (!rooms.has(roomId)) {
         rooms.set(roomId, {
           participants: new Map(),
-          timer: { timeLeft: 25 * 60, isRunning: false, mode: 'study' }
+          timer: { timeLeft: 25 * 60, isRunning: false, mode: 'study' },
+          whiteboardStrokes: []
         });
       }
 
@@ -34,16 +35,17 @@ function initStudyRoomSignaling(io) {
         videoEnabled: true
       });
 
-      console.log('👤 User ' + socket.user.name + ' joined Study Room: ' + roomId + ' (Total: ' + roomData.participants.size + ')');
+      console.log('User ' + socket.user.name + ' joined Study Room: ' + roomId + ' (Total: ' + roomData.participants.size + ')');
 
-      // Send current participants list to the joining user
+      // Send current participants list and existing whiteboard strokes to the joining user
       const existingParticipants = Array.from(roomData.participants.values())
         .filter(p => p.socketId !== socket.id);
 
       socket.emit('room-joined', {
         roomId,
         participants: existingParticipants,
-        timer: roomData.timer
+        timer: roomData.timer,
+        whiteboardStrokes: roomData.whiteboardStrokes || []
       });
 
       // Notify others in the room
@@ -145,6 +147,29 @@ function initStudyRoomSignaling(io) {
         socketId: socket.id,
         isSharing
       });
+    });
+
+    // Collaborative Real-Time Whiteboard
+    socket.on('whiteboard-draw', ({ roomId, stroke }) => {
+      if (!roomId || !stroke) return;
+      const roomData = rooms.get(roomId);
+      if (roomData) {
+        if (!roomData.whiteboardStrokes) roomData.whiteboardStrokes = [];
+        roomData.whiteboardStrokes.push(stroke);
+        if (roomData.whiteboardStrokes.length > 5000) {
+          roomData.whiteboardStrokes.shift();
+        }
+      }
+      socket.to(roomId).emit('whiteboard-draw', stroke);
+    });
+
+    socket.on('whiteboard-clear', ({ roomId }) => {
+      if (!roomId) return;
+      const roomData = rooms.get(roomId);
+      if (roomData) {
+        roomData.whiteboardStrokes = [];
+      }
+      io.in(roomId).emit('whiteboard-clear');
     });
 
     // Disconnect cleanup
