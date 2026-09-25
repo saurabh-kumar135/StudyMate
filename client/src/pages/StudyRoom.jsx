@@ -6,7 +6,7 @@ import { API_URL } from '../config/api';
 import {
   Video, VideoOff, Mic, MicOff, Monitor, MonitorOff,
   PhoneOff, MessageSquare, Timer, Copy, Check, Users,
-  Play, Pause, RotateCcw, Sparkles, BookOpen, ShieldCheck,
+  Play, Pause, RotateCcw, BookOpen, ShieldCheck,
   Send, X, FileText, Download, Subtitles, Loader2, Award,
   PenTool, Eraser, Trash2
 } from 'lucide-react';
@@ -871,7 +871,7 @@ export default function StudyRoom() {
           {/* Header */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold mb-4 tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5" /> Peer-to-Peer Study Network
+              <Users className="w-3.5 h-3.5" /> Peer-to-Peer Study Network
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
               Virtual Study Rooms
@@ -1443,8 +1443,8 @@ export default function StudyRoom() {
                     disabled={transcriptEntries.length === 0 || isSummarizing}
                     className="flex-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-purple-500/20"
                   >
-                    {isSummarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                    {isSummarizing ? 'Analyzing...' : 'AI Study Notes'}
+                    {isSummarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5 text-indigo-200" />}
+                    {isSummarizing ? 'Analyzing...' : 'Session Notes'}
                   </button>
                   <button
                     onClick={handleDownloadTranscript}
@@ -1500,8 +1500,8 @@ export default function StudyRoom() {
           <div className="max-w-2xl w-full bg-slate-900 border border-purple-500/40 rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
             <div className="p-5 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5 text-base font-bold text-white">
-                <Sparkles className="w-5 h-5 text-purple-400" />
-                AI Study Notes & Lecture Digest
+                <FileText className="w-5 h-5 text-indigo-400" />
+                Session Study Notes & Digest
               </div>
               <button
                 onClick={() => setSummaryModalOpen(false)}

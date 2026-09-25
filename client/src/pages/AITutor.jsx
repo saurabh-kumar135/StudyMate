@@ -115,7 +115,7 @@ export default function AITutor() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'Hi! I\'m your AI tutor. Ask me anything about your studies! 📚'
+      content: 'Welcome! I am your study assistant. Ask me anything about your coursework, request concept breakdowns, or review study material together.'
     }
   ]);
   const [input, setInput] = useState('');
@@ -219,8 +219,8 @@ export default function AITutor() {
 
           {loading && (
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-start', alignItems: 'flex-start' }}>
-              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(to bottom right, #14b8a6, #06b6d4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Bot style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
+              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(to bottom right, #06b6d4, #3b82f6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GraduationCap style={{ width: '20px', height: '20px', color: 'white' }} />
               </div>
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '16px', padding: '16px 20px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

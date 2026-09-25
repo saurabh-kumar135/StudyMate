@@ -10,7 +10,6 @@ import {
   Clock,
   Flame,
   Plus,
-  Sparkles,
   Loader,
   Users,
   GraduationCap
@@ -210,11 +209,10 @@ export default function Dashboard() {
         </div>
 
         <div style={cardStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <div style={{ width: '56px', height: '56px', backgroundColor: 'rgba(249, 115, 22, 0.1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Flame style={{ width: '28px', height: '28px', color: '#f97316' }} />
             </div>
-            <span style={{ fontSize: '32px' }}>🔥</span>
           </div>
           <h3 style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '4px' }}>{stats.currentStreak} days</h3>
           <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>Current streak</p>

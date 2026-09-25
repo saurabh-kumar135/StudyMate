@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Trophy, Loader, Sparkles, CheckCircle, XCircle, Brain } from 'lucide-react';
+import { Trophy, Loader, CheckCircle, XCircle, Brain } from 'lucide-react';
 
 import { API_URL } from '../config/api';
 
@@ -188,7 +188,7 @@ export default function Quiz() {
                   </>
                 ) : (
                   <>
-                    <Sparkles style={{ width: '20px', height: '20px' }} />
+                    <Trophy style={{ width: '20px', height: '20px' }} />
                     Generate Quiz
                   </>
                 )}

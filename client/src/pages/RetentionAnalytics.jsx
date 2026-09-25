@@ -10,7 +10,7 @@ import {
   Clock,
   BookOpen,
   Award,
-  Sparkles,
+  Activity,
   RefreshCw,
   CheckCircle2,
   ArrowRight,
@@ -346,7 +346,7 @@ export default function RetentionAnalytics() {
             <div style={{ padding: '24px', borderRadius: '16px', background: 'var(--card-bg, #ffffff)', border: '1px solid var(--border-color, #e5e7eb)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Engagement Index</span>
-                <Sparkles size={22} color="#3b82f6" />
+                <Activity size={22} color="#3b82f6" />
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '44px', fontWeight: '800', color: 'var(--text-primary)', lineHeight: '1' }}>

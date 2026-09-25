@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import axios from 'axios';
-import { FileText, Upload, Loader, Sparkles, BookOpen, File, CheckCircle, Save, Video } from 'lucide-react';
+import { FileText, Upload, Loader, BookOpen, File, CheckCircle, Save, Video, Info } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -336,12 +336,12 @@ export default function StudyMaterials() {
             {loading ? (
               <>
                 <Loader style={{ width: '22px', height: '22px', animation: 'spin 1s linear infinite' }} />
-                Summarizing...
+                Generating Summary...
               </>
             ) : (
               <>
-                <Sparkles style={{ width: '22px', height: '22px' }} />
-                Summarize with AI
+                <FileText style={{ width: '22px', height: '22px' }} />
+                Generate Summary
               </>
             )}
           </button>
@@ -351,8 +351,8 @@ export default function StudyMaterials() {
         <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-              <Sparkles style={{ width: '24px', height: '24px', color: '#10b981' }} />
-              AI Summary
+              <BookOpen style={{ width: '24px', height: '24px', color: '#10b981' }} />
+              Summary & Key Notes
             </h2>
             {summary && (
               <button
@@ -390,7 +390,7 @@ export default function StudyMaterials() {
               <div style={{ textAlign: 'center', color: '#6b7280' }}>
                 <Upload style={{ width: '56px', height: '56px', margin: '0 auto 16px', opacity: 0.5 }} />
                 <p style={{ fontSize: '20px', margin: '0 0 8px 0' }}>Your summary will appear here</p>
-                <p style={{ fontSize: '16px', margin: 0 }}>Upload a document or paste text, then click "Summarize with AI"</p>
+                <p style={{ fontSize: '16px', margin: 0 }}>Upload a document or paste text, then click "Generate Summary"</p>
               </div>
             </div>
           )}
@@ -464,21 +464,24 @@ export default function StudyMaterials() {
         </div>
       )}
 
-      {/* Tips Section - Full Width */}
+      {/* Guidelines Section - Clean, Professional, No Emojis */}
       <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '14px', padding: '24px', border: '1px solid var(--border-color)' }}>
-        <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '20px' }}>💡 Tips for Better Summaries</h3>
+        <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Info style={{ width: '20px', height: '20px', color: '#22c55e' }} />
+          Document & Summary Guidelines
+        </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '18px' }}>📄 Supported Files</h4>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', margin: 0 }}>PDF and TXT files up to 10MB</p>
+          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '17px' }}>Supported Files</h4>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0 }}>PDF and TXT documents up to 10MB</p>
           </div>
-          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '18px' }}>📏 Right Length</h4>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', margin: 0 }}>Choose summary length based on your needs</p>
+          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '17px' }}>Summary Length</h4>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0 }}>Select Short for key points or Long for detailed study guides</p>
           </div>
-          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
-            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '18px' }}>🎯 Focus</h4>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)', margin: 0 }}>Summarize one topic at a time for best results</p>
+          <div style={{ padding: '18px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <h4 style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '8px', fontSize: '17px' }}>Topic Focus</h4>
+            <p style={{ fontSize: '15px', color: 'var(--text-secondary)', margin: 0 }}>Process one lecture chapter at a time for optimal depth</p>
           </div>
         </div>
       </div>
