@@ -118,16 +118,22 @@ export default function StudyRoom() {
     }
   };
 
-  // Helper: Get user media with responsive fallbacks (HD -> Standard -> VideoOnly -> Synthetic)
+  // Helper: Get user media with responsive fallbacks and echo cancellation
   const getMediaStream = async () => {
+    const audioConfig = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true
+    };
+
     try {
       return await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: true
+        audio: audioConfig
       });
     } catch (err1) {
       try {
-        return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        return await navigator.mediaDevices.getUserMedia({ video: true, audio: audioConfig });
       } catch (err2) {
         try {
           return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
@@ -159,15 +165,18 @@ export default function StudyRoom() {
           draw();
           const canvasStream = canvas.captureStream(30);
 
-          // Create silent audio track using Web Audio API
+          // Create completely silent audio track using zero-gain node (no tone/oscillation)
           try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const dst = osc.connect(audioCtx.createMediaStreamDestination());
-            osc.start();
+            const dst = audioCtx.createMediaStreamDestination();
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0;
+            gain.connect(dst);
             const silentAudioTrack = dst.stream.getAudioTracks()[0];
-            silentAudioTrack.enabled = false;
-            canvasStream.addTrack(silentAudioTrack);
+            if (silentAudioTrack) {
+              silentAudioTrack.enabled = false;
+              canvasStream.addTrack(silentAudioTrack);
+            }
           } catch (audioErr) {
             console.warn('Silent audio creation skipped:', audioErr);
           }
