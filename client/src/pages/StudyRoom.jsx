@@ -47,7 +47,15 @@ export default function StudyRoom() {
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
   const chatBottomRef = useRef(null);
-  const iceServersRef = useRef([{ urls: 'stun:stun.l.google.com:19302' }]);
+  const iceCandidatesQueueRef = useRef([]);
+  const iceServersRef = useRef([
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.relay.metered.ca:80' }
+  ]);
 
   // Ensure video elements get streams attached upon mounting
   useEffect(() => {
@@ -97,55 +105,75 @@ export default function StudyRoom() {
     }
   };
 
-  // Helper: Create synthetic stream if no physical camera exists
+  // Process any ICE candidates that arrived before setRemoteDescription was completed
+  const processQueuedCandidates = async (pc) => {
+    if (!pc || !pc.remoteDescription) return;
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const cand = iceCandidatesQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (err) {
+        console.warn('Error adding queued ICE candidate:', err);
+      }
+    }
+  };
+
+  // Helper: Get user media with responsive fallbacks (HD -> Standard -> VideoOnly -> Synthetic)
   const getMediaStream = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+      return await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: true
       });
-      return stream;
-    } catch (err) {
-      console.warn('Physical camera/mic unavailable. Generating synthetic media stream:', err.name);
-      // Create animated canvas stream for headless/testing environments
-      const canvas = document.createElement('canvas');
-      canvas.width = 640;
-      canvas.height = 480;
-      const ctx = canvas.getContext('2d');
-      let frame = 0;
-      const draw = () => {
-        frame++;
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, 0, 640, 480);
-        ctx.fillStyle = '#38bdf8';
-        ctx.font = 'bold 28px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('🎓 StudyMate Live Room', 320, 200);
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '20px sans-serif';
-        ctx.fillText(userName || 'Student', 320, 240);
-        ctx.beginPath();
-        ctx.arc(320, 310, 40 + Math.sin(frame * 0.05) * 6, 0, Math.PI * 2);
-        ctx.fillStyle = '#2563eb';
-        ctx.fill();
-        requestAnimationFrame(draw);
-      };
-      draw();
-      const canvasStream = canvas.captureStream(30);
-
-      // Create silent audio track using Web Audio API
+    } catch (err1) {
       try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const dst = osc.connect(audioCtx.createMediaStreamDestination());
-        osc.start();
-        const silentAudioTrack = dst.stream.getAudioTracks()[0];
-        silentAudioTrack.enabled = false;
-        canvasStream.addTrack(silentAudioTrack);
-      } catch (audioErr) {
-        console.warn('Silent audio creation skipped:', audioErr);
+        return await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err2) {
+        try {
+          return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } catch (err) {
+          console.warn('Physical camera/mic unavailable. Generating synthetic media stream:', err.name);
+          // Create animated canvas stream for headless/testing environments
+          const canvas = document.createElement('canvas');
+          canvas.width = 640;
+          canvas.height = 480;
+          const ctx = canvas.getContext('2d');
+          let frame = 0;
+          const draw = () => {
+            frame++;
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, 640, 480);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 28px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('StudyMate Live Room', 320, 200);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '20px sans-serif';
+            ctx.fillText(userName || 'Student', 320, 240);
+            ctx.beginPath();
+            ctx.arc(320, 310, 40 + Math.sin(frame * 0.05) * 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#2563eb';
+            ctx.fill();
+            requestAnimationFrame(draw);
+          };
+          draw();
+          const canvasStream = canvas.captureStream(30);
+
+          // Create silent audio track using Web Audio API
+          try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const dst = osc.connect(audioCtx.createMediaStreamDestination());
+            osc.start();
+            const silentAudioTrack = dst.stream.getAudioTracks()[0];
+            silentAudioTrack.enabled = false;
+            canvasStream.addTrack(silentAudioTrack);
+          } catch (audioErr) {
+            console.warn('Silent audio creation skipped:', audioErr);
+          }
+          return canvasStream;
+        }
       }
-      return canvasStream;
     }
   };
 
@@ -196,25 +224,39 @@ export default function StudyRoom() {
     socket.on('signal-offer', async ({ from, offer, user }) => {
       if (user) setRemoteUserName(user.name);
       const pc = peerConnectionRef.current || initiatePeerConnection(from, false);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('signal-answer', { to: from, answer });
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        await processQueuedCandidates(pc);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('signal-answer', { to: from, answer });
+      } catch (err) {
+        console.error('Error handling WebRTC offer:', err);
+      }
     });
 
     socket.on('signal-answer', async ({ answer }) => {
       if (peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+        try {
+          await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+          await processQueuedCandidates(peerConnectionRef.current);
+        } catch (err) {
+          console.error('Error handling WebRTC answer:', err);
+        }
       }
     });
 
     socket.on('signal-ice-candidate', async ({ candidate }) => {
-      if (peerConnectionRef.current && candidate) {
+      if (!candidate) return;
+      const pc = peerConnectionRef.current;
+      if (pc && pc.remoteDescription && pc.remoteDescription.type) {
         try {
-          await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (e) {
-          console.warn('Error adding ICE candidate:', e);
+          console.warn('Error adding ICE candidate directly:', e);
         }
+      } else {
+        iceCandidatesQueueRef.current.push(candidate);
       }
     });
 
@@ -297,15 +339,20 @@ export default function StudyRoom() {
       }
     };
 
-    // If caller, create and send SDP offer
+    // If caller, create and send SDP offer with audio/video media descriptions
     if (isInitiator) {
-      pc.createOffer().then(offer => {
-        pc.setLocalDescription(offer);
-        socketRef.current.emit('signal-offer', {
+      pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      })
+      .then(async (offer) => {
+        await pc.setLocalDescription(offer);
+        socketRef.current?.emit('signal-offer', {
           to: targetSocketId,
           offer
         });
-      });
+      })
+      .catch((err) => console.error('Error creating SDP offer:', err));
     }
 
     return pc;
@@ -417,6 +464,7 @@ export default function StudyRoom() {
     setInCall(false);
     setRemoteConnected(false);
     remoteStreamRef.current = null;
+    iceCandidatesQueueRef.current = [];
     navigate('/study-room');
   };
 
