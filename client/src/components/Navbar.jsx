@@ -16,11 +16,11 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/app/dashboard', label: 'Dashboard' },
-    { to: '/app/retention', label: 'Retention AI' },
-    { to: '/app/ai-tutor', label: 'AI tutor' },
+    { to: '/study-room', label: 'Study Rooms' },
     { to: '/app/materials', label: 'Materials' },
     { to: '/app/quiz', label: 'Quizzes' },
-    { to: '/study-room', label: 'Live Study Room' },
+    { to: '/app/retention', label: 'Retention & Recall' },
+    { to: '/app/ai-tutor', label: 'Study Assistant' },
   ];
 
   useEffect(() => {

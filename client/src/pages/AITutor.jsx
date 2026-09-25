@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, Bot, User, Loader } from 'lucide-react';
+import { Send, GraduationCap, User, Loader } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 import { API_URL } from '../config/api';
@@ -168,12 +168,12 @@ export default function AITutor() {
         {/* Header */}
         <div style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '16px 16px 0 0', padding: '24px', borderBottom: '1px solid #333' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '48px', height: '48px', background: 'linear-gradient(to bottom right, #14b8a6, #06b6d4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot style={{ width: '28px', height: '28px', color: 'var(--text-primary)' }} />
+            <div style={{ width: '48px', height: '48px', background: 'linear-gradient(to bottom right, #06b6d4, #3b82f6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <GraduationCap style={{ width: '28px', height: '28px', color: 'white' }} />
             </div>
             <div>
-              <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>AI Tutor</h1>
-              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', margin: 0 }}>Ask me anything about your studies</p>
+              <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>Study Assistant</h1>
+              <p style={{ fontSize: '16px', color: 'var(--text-secondary)', margin: 0 }}>Ask questions, clarify concepts, and get guided explanations</p>
             </div>
           </div>
         </div>
@@ -186,8 +186,8 @@ export default function AITutor() {
               style={{ display: 'flex', gap: '12px', justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start', alignItems: 'flex-start' }}
             >
               {message.role === 'assistant' && (
-                <div style={{ width: '36px', height: '36px', background: 'linear-gradient(to bottom right, #14b8a6, #06b6d4)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Bot style={{ width: '20px', height: '20px', color: 'var(--text-primary)' }} />
+                <div style={{ width: '36px', height: '36px', background: 'linear-gradient(to bottom right, #06b6d4, #3b82f6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <GraduationCap style={{ width: '20px', height: '20px', color: 'white' }} />
                 </div>
               )}
               

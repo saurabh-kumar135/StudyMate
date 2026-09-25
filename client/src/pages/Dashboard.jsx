@@ -11,7 +11,9 @@ import {
   Flame,
   Plus,
   Sparkles,
-  Loader
+  Loader,
+  Users,
+  GraduationCap
 } from 'lucide-react';
 
 import { API_URL } from '../config/api';
@@ -301,37 +303,46 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div>
-        <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Quick Actions</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
-          <Link to="/app/ai-tutor" style={{ ...cardStyle, textDecoration: 'none' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #f97316, #ef4444)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Brain style={{ width: '28px', height: '28px', color: 'var(--text-primary)' }} />
-              </div>
-              <Sparkles style={{ width: '24px', height: '24px', color: '#f97316' }} />
-            </div>
-            <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '10px' }}>AI Tutor</h3>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>Ask questions and get instant help</p>
-          </Link>
-
-          <Link to="/app/quiz" style={{ ...cardStyle, textDecoration: 'none' }}>
+        <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Quick Study Tools</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
+          <Link to="/study-room" style={{ ...cardStyle, textDecoration: 'none' }}>
             <div style={{ marginBottom: '20px' }}>
-              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #3b82f6, #06b6d4)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Trophy style={{ width: '28px', height: '28px', color: 'var(--text-primary)' }} />
+              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #06b6d4, #3b82f6)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users style={{ width: '28px', height: '28px', color: 'white' }} />
               </div>
             </div>
-            <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '10px' }}>Take Quiz</h3>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>Test your knowledge</p>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>Study Rooms</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Live whiteboard & peer collaboration</p>
           </Link>
 
           <Link to="/app/materials" style={{ ...cardStyle, textDecoration: 'none' }}>
             <div style={{ marginBottom: '20px' }}>
               <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #22c55e, #10b981)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <BookOpen style={{ width: '28px', height: '28px', color: 'var(--text-primary)' }} />
+                <BookOpen style={{ width: '28px', height: '28px', color: 'white' }} />
               </div>
             </div>
-            <h3 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '10px' }}>Study Materials</h3>
-            <p style={{ fontSize: '16px', color: 'var(--text-secondary)' }}>Upload and summarize notes</p>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>Study Materials</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Upload & organize course notes</p>
+          </Link>
+
+          <Link to="/app/quiz" style={{ ...cardStyle, textDecoration: 'none' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #3b82f6, #6366f1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Trophy style={{ width: '28px', height: '28px', color: 'white' }} />
+              </div>
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>Practice Quizzes</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Active recall & knowledge checks</p>
+          </Link>
+
+          <Link to="/app/ai-tutor" style={{ ...cardStyle, textDecoration: 'none' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #f97316, #ea580c)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <GraduationCap style={{ width: '28px', height: '28px', color: 'white' }} />
+              </div>
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>Study Assistant</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Guided explanations when stuck</p>
           </Link>
         </div>
       </div>
