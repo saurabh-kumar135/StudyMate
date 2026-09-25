@@ -41,12 +41,25 @@ export default function StudyRoom() {
   // Refs
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteStreamRef = useRef(null);
   const socketRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
   const chatBottomRef = useRef(null);
   const iceServersRef = useRef([{ urls: 'stun:stun.l.google.com:19302' }]);
+
+  // Ensure video elements get streams attached upon mounting
+  useEffect(() => {
+    if (inCall && localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+      localVideoRef.current.play().catch((e) => console.log('local play error:', e));
+    }
+    if (inCall && remoteVideoRef.current && remoteStreamRef.current) {
+      remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      remoteVideoRef.current.play().catch((e) => console.log('remote play error:', e));
+    }
+  }, [inCall]);
 
   // Load user info from localStorage or defaults
   useEffect(() => {
@@ -254,9 +267,13 @@ export default function StudyRoom() {
 
     // Handle remote media track
     pc.ontrack = (event) => {
-      console.log('🎬 Received remote video/audio track:', event.track.kind);
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
+      console.log('Received remote video/audio track:', event.track.kind);
+      if (event.streams[0]) {
+        remoteStreamRef.current = event.streams[0];
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          remoteVideoRef.current.play().catch((e) => console.log('remote play error:', e));
+        }
         setRemoteConnected(true);
       }
     };
@@ -399,6 +416,7 @@ export default function StudyRoom() {
 
     setInCall(false);
     setRemoteConnected(false);
+    remoteStreamRef.current = null;
     navigate('/study-room');
   };
 
