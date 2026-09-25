@@ -6,6 +6,75 @@ const cleanEnv = (val, fallback = '') => {
   return val.trim();
 };
 
+const getOAuth2AccessToken = async () => {
+  const clientId = cleanEnv(process.env.GMAIL_CLIENT_ID);
+  const clientSecret = cleanEnv(process.env.GMAIL_CLIENT_SECRET);
+  const refreshToken = cleanEnv(process.env.GMAIL_REFRESH_TOKEN);
+
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Missing Gmail OAuth2 configuration');
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token'
+  });
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.access_token) {
+    throw new Error('OAuth2 token error: ' + (data.error_description || data.error || res.statusText));
+  }
+  return data.access_token;
+};
+
+const buildMimeMessage = (sender, to, subject, html) => {
+  const lines = [
+    'Content-Type: text/html; charset="UTF-8"',
+    'MIME-Version: 1.0',
+    'Content-Transfer-Encoding: 7bit',
+    'to: ' + to,
+    'from: "StudyMate" <' + sender + '>',
+    'subject: =?UTF-8?B?' + Buffer.from(subject).toString('base64') + '?=',
+    '',
+    html
+  ];
+
+  return Buffer.from(lines.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
+const sendViaGmailRestApi = async (sender, to, subject, html) => {
+  const accessToken = await getOAuth2AccessToken();
+  const raw = buildMimeMessage(sender, to, subject, html);
+  const url = 'https://gmail.googleapis.com/gmail/v1/users/' + encodeURIComponent(sender) + '/messages/send';
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ raw })
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error('Gmail REST API error: ' + (data.error?.message || res.statusText));
+  }
+  return data;
+};
+
 const createTransporter = () => {
   const user = cleanEnv(process.env.EMAIL_USER || process.env.GMAIL_USER, 'saurabhrajput.25072005@gmail.com');
   const pass = cleanEnv(process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD, 'sheleprpeihikkwl').replace(/\s+/g, '');
@@ -47,6 +116,19 @@ const sendOTPEmail = async (email, otp, firstName) => {
     '<p style="margin: 0;">© 2026 StudyMate AI Platform. All rights reserved.</p>' +
     '</div></div></body></html>';
 
+  // 1. Primary: Try Google Gmail REST API over HTTPS (Port 443 - works in cloud environments like Render)
+  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_REFRESH_TOKEN) {
+    try {
+      console.log('🌐 Attempting email delivery via Google Gmail REST API (HTTPS)...');
+      const restResult = await sendViaGmailRestApi(senderEmail, email, 'Verify Your Email - StudyMate Registration', htmlContent);
+      console.log('✅ StudyMate OTP email sent successfully via Gmail REST API to ' + email + ' (ID: ' + restResult.id + ')');
+      return { success: true, messageId: restResult.id };
+    } catch (restErr) {
+      console.warn('⚠️ Gmail REST API delivery attempt failed: ' + restErr.message + '. Falling back to SMTP...');
+    }
+  }
+
+  // 2. Secondary Fallback: Gmail SMTP via Nodemailer
   const mailOptions = {
     from: '"StudyMate" <' + senderEmail + '>',
     to: email,
@@ -60,7 +142,7 @@ const sendOTPEmail = async (email, otp, firstName) => {
       transporter.sendMail(mailOptions),
       new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 8000))
     ]);
-    console.log('✅ StudyMate OTP email sent successfully to ' + email + ' (MessageId: ' + info.messageId + ')');
+    console.log('✅ StudyMate OTP email sent successfully via SMTP to ' + email + ' (MessageId: ' + info.messageId + ')');
     return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error('❌ Error sending OTP email:', err.message);
@@ -84,6 +166,18 @@ const sendPasswordResetEmail = async (email, resetToken, firstName) => {
     '<p style="font-size: 12px; color: #94a3b8;">This link expires in 1 hour.</p>' +
     '</div></body></html>';
 
+  // 1. Primary: Try Google Gmail REST API over HTTPS
+  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_REFRESH_TOKEN) {
+    try {
+      console.log('🌐 Attempting password reset email via Google Gmail REST API (HTTPS)...');
+      const restResult = await sendViaGmailRestApi(senderEmail, email, 'Reset your StudyMate password 🔑', htmlContent);
+      return { success: true, messageId: restResult.id };
+    } catch (restErr) {
+      console.warn('⚠️ Gmail REST API reset email failed: ' + restErr.message + '. Falling back to SMTP...');
+    }
+  }
+
+  // 2. Secondary Fallback: Gmail SMTP via Nodemailer
   const mailOptions = {
     from: '"StudyMate" <' + senderEmail + '>',
     to: email,

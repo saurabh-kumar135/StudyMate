@@ -20,6 +20,7 @@ export default function Navbar() {
     { to: '/app/ai-tutor', label: 'AI tutor' },
     { to: '/app/materials', label: 'Materials' },
     { to: '/app/quiz', label: 'Quizzes' },
+    { to: '/study-room', label: 'Live Study Room' },
   ];
 
   useEffect(() => {

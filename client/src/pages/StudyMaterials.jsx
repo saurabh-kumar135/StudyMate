@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import axios from 'axios';
-import { FileText, Upload, Loader, Sparkles, BookOpen, File, CheckCircle, Save } from 'lucide-react';
+import { FileText, Upload, Loader, Sparkles, BookOpen, File, CheckCircle, Save, Video } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 import { API_URL } from '../config/api';
 
@@ -201,14 +201,36 @@ export default function StudyMaterials() {
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-primary)', paddingTop: '96px', padding: '96px 16px 32px 16px' }}>
       {/* Header - Full Width */}
       <div style={{ marginBottom: '28px', paddingLeft: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
-          <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #22c55e, #10b981)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BookOpen style={{ width: '32px', height: '32px', color: 'var(--text-primary)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #22c55e, #10b981)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BookOpen style={{ width: '32px', height: '32px', color: 'var(--text-primary)' }} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>Study Materials</h1>
+              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '18px' }}>Upload documents or paste text to summarize</p>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>Study Materials</h1>
-            <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '18px' }}>Upload documents or paste text to summarize</p>
-          </div>
+          <Link
+            to="/study-room"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 22px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
+              color: '#ffffff',
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '15px',
+              boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+              transition: 'transform 0.15s ease'
+            }}
+          >
+            <Video style={{ width: '20px', height: '20px' }} />
+            Join Live Study Room
+          </Link>
         </div>
       </div>
 

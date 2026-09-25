@@ -14,6 +14,7 @@ import VerifyEmail from './pages/auth/VerifyEmail';
 import Home from './pages/Home';
 import AgentShowcase from './pages/AgentShowcase';
 import RetentionAnalytics from './pages/RetentionAnalytics';
+import StudyRoom from './pages/StudyRoom';
 import './App.css';
 
 function App() {
@@ -39,6 +40,8 @@ function App() {
           <Route path="/profile" element={<Navigate to="/app/profile" replace />} />
           <Route path="/search" element={<Navigate to="/app/search" replace />} />
           <Route path="/notebook/:id" element={<Navigate to="/app/notebook/:id" replace />} />
+          <Route path="/study-room" element={<StudyRoom />} />
+          <Route path="/study-room/:roomId" element={<StudyRoom />} />
 
           {/* App Routes (With Navbar) */}
           <Route path="/app/*" element={

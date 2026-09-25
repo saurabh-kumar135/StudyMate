@@ -68,6 +68,7 @@ exports.sendOTP = async (req, res) => {
       rawEmail: email
     }, otp, otpExpires);
 
+    console.log('🔑 StudyMate Verification OTP for ' + email + ': ' + otp);
     console.log('📨 Dispatching OTP email to:', email);
     const emailResult = await sendOTPEmail(email, otp, firstName);
 

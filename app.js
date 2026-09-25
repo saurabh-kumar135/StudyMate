@@ -20,6 +20,10 @@ const materialRouter = require("./routes/materialRoutes")
 const statsRouter = require("./routes/statsRoutes")
 const notebookRouter = require("./routes/notebookRoutes")
 const agentRouter = require("./routes/agentRoutes")
+const studyRoomRouter = require("./routes/studyRoomRoutes")
+const http = require('http');
+const { Server } = require('socket.io');
+const { initStudyRoomSignaling } = require('./services/studyRoomSignaling');
 const rootDir = require("./utils/pathUtil");
 const errorsController = require("./controllers/errors");
 const { apiLimiter } = require('./middleware/rateLimiter');
@@ -183,18 +187,28 @@ app.use('/api/materials', materialRouter);
 app.use('/api/user', statsRouter);
 app.use('/api/notebooks', notebookRouter);
 app.use('/api/agent', agentRouter);
+app.use('/api/study-rooms', studyRoomRouter);
  
 app.use(storeRouter);
 app.use(hostRouter);
 
 app.use(errorsController.pageNotFound);
 
-const PORT = process.env.PORT || 3009;
+const PORT = process.env.PORT || 3011;
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+initStudyRoomSignaling(io);
 
 mongoose.connect(DB_PATH).then(() => {
   console.log('Connected to Mongo');
-  app.listen(PORT, () => {
-    console.log(`Server running on address http://localhost:${PORT}`);
+  server.listen(PORT, () => {
+    console.log('Server running on address http://localhost:' + PORT);
   });
 }).catch(err => {
   console.log('Error while connecting to Mongo: ', err);

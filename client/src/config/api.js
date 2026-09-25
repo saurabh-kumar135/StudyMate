@@ -2,11 +2,12 @@ export const getApiUrl = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
-    if (!isLocal) {
-      return 'https://studymate1-dquv.onrender.com';
+    if (isLocal) {
+      return 'http://localhost:3011';
     }
+    return 'https://studymate1-dquv.onrender.com';
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:3011';
+  return 'http://localhost:3011';
 };
 
 export const API_URL = getApiUrl();
