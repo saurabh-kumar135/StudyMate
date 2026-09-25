@@ -227,7 +227,7 @@ export default function StudyRoom() {
     }
   };
 
-  // Helper: Get user media with responsive fallbacks and echo cancellation
+  // Helper: Get user media with responsive fallbacks, timeout protection, and echo cancellation
   const getMediaStream = async () => {
     const audioConfig = {
       echoCancellation: true,
@@ -235,17 +235,27 @@ export default function StudyRoom() {
       autoGainControl: true
     };
 
+    const requestMediaWithTimeout = (constraints, timeoutMs = 1500) => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return Promise.reject(new Error('getUserMedia not supported'));
+      }
+      return Promise.race([
+        navigator.mediaDevices.getUserMedia(constraints),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Media prompt timeout')), timeoutMs))
+      ]);
+    };
+
     try {
-      return await navigator.mediaDevices.getUserMedia({
+      return await requestMediaWithTimeout({
         video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
         audio: audioConfig
-      });
+      }, 1500);
     } catch (err1) {
       try {
-        return await navigator.mediaDevices.getUserMedia({ video: true, audio: audioConfig });
+        return await requestMediaWithTimeout({ video: true, audio: audioConfig }, 1000);
       } catch (err2) {
         try {
-          return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          return await requestMediaWithTimeout({ video: true, audio: false }, 1000);
         } catch (err) {
           console.warn('Physical camera/mic unavailable. Generating synthetic media stream:', err.name);
           // Create animated canvas stream for headless/testing environments
@@ -301,6 +311,7 @@ export default function StudyRoom() {
     if (!finalRoomId) return;
 
     setRoomId(finalRoomId);
+    setInCall(true);
     const stream = await getMediaStream();
     localStreamRef.current = stream;
 
