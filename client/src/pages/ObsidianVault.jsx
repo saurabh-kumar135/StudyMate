@@ -1131,11 +1131,51 @@ export default function ObsidianVault() {
     setIsDraggingCanvas(false);
   };
 
-  const handleCanvasWheel = (e) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    setGraphZoom(prev => Math.min(3.5, Math.max(0.3, prev * zoomFactor)));
+  // Cursor-centered smooth zoom
+  const zoomAtPoint = (factor, clientX, clientY) => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      setGraphZoom(z => Math.min(4.5, Math.max(0.15, +(z * factor).toFixed(3))));
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = clientX !== undefined ? (clientX - rect.left) : (rect.width / 2);
+    const mouseY = clientY !== undefined ? (clientY - rect.top) : (rect.height / 2);
+    const width = canvas.width / window.devicePixelRatio;
+    const height = canvas.height / window.devicePixelRatio;
+
+    setGraphZoom(prevZoom => {
+      const newZoom = Math.min(4.5, Math.max(0.15, +(prevZoom * factor).toFixed(3)));
+      const scaleChange = newZoom / prevZoom;
+      setGraphPan(prevPan => {
+        const cx = mouseX - width / 2;
+        const cy = mouseY - height / 2;
+        return {
+          x: cx - (cx - prevPan.x) * scaleChange,
+          y: cy - (cy - prevPan.y) * scaleChange
+        };
+      });
+      return newZoom;
+    });
   };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheelNative = (e) => {
+      e.preventDefault();
+      const factor = e.ctrlKey 
+        ? Math.exp(-e.deltaY * 0.01) 
+        : (e.deltaY < 0 ? 1.15 : 0.85);
+      zoomAtPoint(factor, e.clientX, e.clientY);
+    };
+
+    canvas.addEventListener('wheel', onWheelNative, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheelNative);
+    };
+  }, [viewMode]);
 
   const handleFocusNode = (searchTitle) => {
     const candidates = simNodesRef.current.length > 0 ? simNodesRef.current : (graphData.nodes || []);
@@ -1849,7 +1889,7 @@ export default function ObsidianVault() {
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
-              onWheel={handleCanvasWheel}
+              onDoubleClick={(e) => zoomAtPoint(1.35, e.clientX, e.clientY)}
               className="w-full h-full cursor-grab active:cursor-grabbing"
             />
 
@@ -1969,17 +2009,20 @@ export default function ObsidianVault() {
             )}
 
             {/* Floating Zoom & Physics Control Pill */}
-            <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 bg-gray-900/95 backdrop-blur-lg border border-gray-800 p-2 rounded-2xl shadow-2xl">
+            <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1.5 bg-gray-900/95 backdrop-blur-lg border border-gray-800 p-1.5 rounded-2xl shadow-2xl">
               <button
-                onClick={() => setGraphZoom(z => Math.min(3.5, z * 1.2))}
-                className="p-2 hover:bg-gray-800 text-gray-300 rounded-xl transition"
-                title="Zoom In"
+                onClick={() => zoomAtPoint(1.25)}
+                className="p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl transition"
+                title="Zoom In (or double-click canvas)"
               >
                 <ZoomIn className="w-4 h-4" />
               </button>
+              <span className="text-xs font-mono text-gray-300 px-2 select-none font-bold">
+                {Math.round(graphZoom * 100) + '%'}
+              </span>
               <button
-                onClick={() => setGraphZoom(z => Math.max(0.3, z * 0.8))}
-                className="p-2 hover:bg-gray-800 text-gray-300 rounded-xl transition"
+                onClick={() => zoomAtPoint(0.8)}
+                className="p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl transition"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-4 h-4" />
@@ -1989,8 +2032,8 @@ export default function ObsidianVault() {
                   setGraphZoom(1);
                   setGraphPan({ x: 0, y: 0 });
                 }}
-                className="p-2 hover:bg-gray-800 text-gray-300 rounded-xl transition"
-                title="Reset View"
+                className="p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl transition"
+                title="Reset View (100%)"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
