@@ -234,6 +234,8 @@ export default function ObsidianVault() {
   const localCanvasRef = useRef(null);
   const animationFrameRef = useRef(null);
   const simNodesRef = useRef([]);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
   const [graphZoom, setGraphZoom] = useState(1);
   const [graphPan, setGraphPan] = useState({ x: 0, y: 0 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
@@ -736,8 +738,20 @@ export default function ObsidianVault() {
     canvas.height = height * window.devicePixelRatio;
     ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-    // Initialize physical node positions
+    // Initialize or preserve physical node positions
+    const existingMap = new Map((simNodesRef.current || []).map(n => [n.id, n]));
     const nodes = graphData.nodes.map((n, i) => {
+      const existing = existingMap.get(n.id);
+      if (existing && typeof existing.x === 'number' && typeof existing.y === 'number') {
+        return {
+          ...n,
+          x: existing.x,
+          y: existing.y,
+          vx: existing.vx || 0,
+          vy: existing.vy || 0,
+          radius: Math.max(7, Math.min(22, 9 + (n.degree || 1) * 2)) * physicsSettings.nodeSizeScale
+        };
+      }
       const angle = (i / graphData.nodes.length) * Math.PI * 2;
       const radius = 120 + Math.random() * 150;
       return {
@@ -850,9 +864,11 @@ export default function ObsidianVault() {
       ctx.save();
 
       // Apply Zoom & Pan Transform
-      ctx.translate(graphPan.x, graphPan.y);
+      const z = zoomRef.current;
+      const p = panRef.current;
+      ctx.translate(p.x, p.y);
       ctx.translate(width / 2, height / 2);
-      ctx.scale(graphZoom, graphZoom);
+      ctx.scale(z, z);
       ctx.translate(-width / 2, -height / 2);
 
       // Render Links
@@ -933,37 +949,38 @@ export default function ObsidianVault() {
         ctx.setLineDash([]);
 
         // Scale-Adaptive Obsidian Node Labels & Annotations
+        const currentZoom = zoomRef.current;
         const shouldShowLabel = 
           isHovered || 
           isActive || 
           isConnectedToHover || 
           (physicsSettings.showLabels && (
-            graphZoom >= 0.55 || 
-            (graphZoom >= 0.35 && (n.degree > 0 || n.radius >= 11)) ||
-            (graphZoom < 0.35 && (n.degree >= 2 || n.radius >= 14))
+            currentZoom >= 0.55 || 
+            (currentZoom >= 0.35 && (n.degree > 0 || n.radius >= 11)) ||
+            (currentZoom < 0.35 && (n.degree >= 2 || n.radius >= 14))
           ));
 
         if (shouldShowLabel) {
-          // Counter-scale font so it stays perfectly legible across all zoom levels
-          const baseScreenSize = (isActive || isHovered) ? 12.5 : 11;
-          const canvasFontSize = baseScreenSize / graphZoom;
+          // World font size scales naturally when zooming in, with compression when zooming out
+          const baseSize = (isActive || isHovered) ? 14 : 12;
+          const worldFontSize = Math.max(9, baseSize / Math.pow(currentZoom, 0.35));
           const fontWeight = (isActive || isHovered) ? '600 ' : '500 ';
-          ctx.font = fontWeight + canvasFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          ctx.font = fontWeight + worldFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
 
-          // Constant screen spacing below the node edge
-          const labelY = n.y + n.radius + (9 / graphZoom);
+          // Spacing below node edge
+          const labelY = n.y + n.radius + (6 / currentZoom);
           const rawLabel = n.label || n.title || 'Untitled';
-          const labelText = (!isHovered && !isActive && graphZoom < 0.7 && rawLabel.length > 20) 
+          const labelText = (!isHovered && !isActive && currentZoom < 0.65 && rawLabel.length > 20) 
             ? rawLabel.slice(0, 18) + '..' 
             : rawLabel;
 
-          // High-Contrast Text Halo (Obsidian-style outline to prevent edge collision)
+          // High-Contrast Text Halo (proportional stroke to keep letters crisp)
           ctx.save();
           ctx.lineJoin = 'round';
           ctx.miterLimit = 2;
-          ctx.lineWidth = Math.max(2.5, 4 / graphZoom);
+          ctx.lineWidth = Math.max(1.8, 3.2 / currentZoom);
           ctx.strokeStyle = theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(13, 17, 23, 0.95)';
           ctx.strokeText(labelText, n.x, labelY);
 
@@ -975,26 +992,26 @@ export default function ObsidianVault() {
           ctx.restore();
 
           // Sub-annotation Pill: Category & Link count when hovered, active, or zoomed close
-          const showSubAnnotation = isHovered || isActive || (graphZoom >= 1.25 && (n.category || n.degree > 0));
+          const showSubAnnotation = isHovered || isActive || (currentZoom >= 1.25 && (n.category || n.degree > 0));
           if (showSubAnnotation) {
             const annotationText = n.category 
               ? (n.degree > 0 ? n.category + ' • ' + n.degree + ' links' : n.category)
               : (n.degree > 0 ? n.degree + ' links' : (n.folder || 'Note'));
 
-            const subCanvasFontSize = 9.5 / graphZoom;
+            const subWorldFontSize = Math.max(8, 10 / Math.pow(currentZoom, 0.35));
             ctx.save();
-            ctx.font = '500 ' + subCanvasFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.font = '500 ' + subWorldFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
 
-            const subY = labelY + canvasFontSize + (4 / graphZoom);
+            const subY = labelY + worldFontSize + (4 / currentZoom);
             const textMetrics = ctx.measureText(annotationText);
-            const pillPadX = 6 / graphZoom;
-            const pillPadY = 2 / graphZoom;
+            const pillPadX = 6 / currentZoom;
+            const pillPadY = 2 / currentZoom;
             const pillWidth = textMetrics.width + (pillPadX * 2);
-            const pillHeight = subCanvasFontSize + (pillPadY * 2);
+            const pillHeight = subWorldFontSize + (pillPadY * 2);
             const pillX = n.x - (pillWidth / 2);
-            const pillRadius = 4 / graphZoom;
+            const pillRadius = 4 / currentZoom;
 
             // Pill Background
             ctx.beginPath();
@@ -1005,7 +1022,7 @@ export default function ObsidianVault() {
             }
             ctx.fillStyle = theme === 'light' ? 'rgba(241, 245, 249, 0.92)' : 'rgba(30, 41, 59, 0.92)';
             ctx.fill();
-            ctx.lineWidth = 1 / graphZoom;
+            ctx.lineWidth = 1 / currentZoom;
             ctx.strokeStyle = isHovered ? 'rgba(96, 165, 250, 0.6)' : (theme === 'light' ? 'rgba(203, 213, 225, 0.8)' : 'rgba(71, 85, 105, 0.8)');
             ctx.stroke();
 
@@ -1042,7 +1059,7 @@ export default function ObsidianVault() {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       window.removeEventListener('resize', handleResize);
     };
-  }, [viewMode, graphData, graphZoom, graphPan, draggedNode, hoveredNode, activeNoteId, physicsSettings, theme]);
+  }, [viewMode, graphData, draggedNode, hoveredNode, activeNoteId, physicsSettings, theme]);
 
   // Graph Canvas Mouse Interaction (Pan, Zoom, Drag Node)
   const handleCanvasMouseDown = (e) => {
@@ -1052,11 +1069,13 @@ export default function ObsidianVault() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Transform mouse coordinate into simulation space
+    // Transform mouse coordinate into simulation space using current zoom and pan refs
     const width = canvas.width / window.devicePixelRatio;
     const height = canvas.height / window.devicePixelRatio;
-    const simX = (mouseX - graphPan.x - width / 2) / graphZoom + width / 2;
-    const simY = (mouseY - graphPan.y - height / 2) / graphZoom + height / 2;
+    const z = zoomRef.current;
+    const p = panRef.current;
+    const simX = (mouseX - p.x - width / 2) / z + width / 2;
+    const simY = (mouseY - p.y - height / 2) / z + height / 2;
 
     // Check if clicked a node
     const candidateNodes = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
@@ -1075,19 +1094,10 @@ export default function ObsidianVault() {
         }
       } else {
         selectNote(clicked.id);
-        const c = canvasRef.current;
-        if (c) {
-          const w = c.width / window.devicePixelRatio;
-          const h = c.height / window.devicePixelRatio;
-          setGraphPan({
-            x: (w / 2 - (clicked.x || w / 2)) * graphZoom,
-            y: (h / 2 - (clicked.y || h / 2)) * graphZoom
-          });
-        }
       }
     } else {
       setIsDraggingCanvas(true);
-      setDragStart({ x: e.clientX - graphPan.x, y: e.clientY - graphPan.y });
+      setDragStart({ x: e.clientX - p.x, y: e.clientY - p.y });
     }
   };
 
@@ -1100,8 +1110,10 @@ export default function ObsidianVault() {
 
     const width = canvas.width / window.devicePixelRatio;
     const height = canvas.height / window.devicePixelRatio;
-    const simX = (mouseX - graphPan.x - width / 2) / graphZoom + width / 2;
-    const simY = (mouseY - graphPan.y - height / 2) / graphZoom + height / 2;
+    const z = zoomRef.current;
+    const p = panRef.current;
+    const simX = (mouseX - p.x - width / 2) / z + width / 2;
+    const simY = (mouseY - p.y - height / 2) / z + height / 2;
 
     if (draggedNode) {
       draggedNode.x = simX;
@@ -1109,10 +1121,12 @@ export default function ObsidianVault() {
       draggedNode.vx = 0;
       draggedNode.vy = 0;
     } else if (isDraggingCanvas) {
-      setGraphPan({
+      const newPan = {
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y
-      });
+      };
+      panRef.current = newPan;
+      setGraphPan(newPan);
     } else {
       // Hover detection
       const activeCandidates = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
@@ -1134,29 +1148,39 @@ export default function ObsidianVault() {
   // Cursor-centered smooth zoom
   const zoomAtPoint = (factor, clientX, clientY) => {
     const canvas = canvasRef.current;
-    if (!canvas) {
-      setGraphZoom(z => Math.min(4.5, Math.max(0.15, +(z * factor).toFixed(3))));
-      return;
-    }
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const mouseX = clientX !== undefined ? (clientX - rect.left) : (rect.width / 2);
     const mouseY = clientY !== undefined ? (clientY - rect.top) : (rect.height / 2);
     const width = canvas.width / window.devicePixelRatio;
     const height = canvas.height / window.devicePixelRatio;
 
-    setGraphZoom(prevZoom => {
-      const newZoom = Math.min(4.5, Math.max(0.15, +(prevZoom * factor).toFixed(3)));
-      const scaleChange = newZoom / prevZoom;
-      setGraphPan(prevPan => {
-        const cx = mouseX - width / 2;
-        const cy = mouseY - height / 2;
-        return {
-          x: cx - (cx - prevPan.x) * scaleChange,
-          y: cy - (cy - prevPan.y) * scaleChange
-        };
-      });
-      return newZoom;
-    });
+    const prevZoom = zoomRef.current;
+    const newZoom = Math.min(4.5, Math.max(0.2, +(prevZoom * factor).toFixed(3)));
+    if (newZoom === prevZoom) return;
+
+    const scaleChange = newZoom / prevZoom;
+    const prevPan = panRef.current;
+
+    const cx = mouseX - width / 2;
+    const cy = mouseY - height / 2;
+
+    const newPan = {
+      x: cx - (cx - prevPan.x) * scaleChange,
+      y: cy - (cy - prevPan.y) * scaleChange
+    };
+
+    zoomRef.current = newZoom;
+    panRef.current = newPan;
+    setGraphZoom(newZoom);
+    setGraphPan(newPan);
+  };
+
+  const handleResetZoom = () => {
+    zoomRef.current = 1;
+    panRef.current = { x: 0, y: 0 };
+    setGraphZoom(1);
+    setGraphPan({ x: 0, y: 0 });
   };
 
   useEffect(() => {
@@ -1186,12 +1210,15 @@ export default function ObsidianVault() {
       const h = c.height / window.devicePixelRatio;
       selectNote(target.id);
       setHoveredNode(target);
-      const targetZoom = 1.45;
-      setGraphZoom(targetZoom);
-      setGraphPan({
+      const targetZoom = 1.35;
+      const newPan = {
         x: (w / 2 - (target.x || w / 2)) * targetZoom,
         y: (h / 2 - (target.y || h / 2)) * targetZoom
-      });
+      };
+      zoomRef.current = targetZoom;
+      panRef.current = newPan;
+      setGraphZoom(targetZoom);
+      setGraphPan(newPan);
     }
   };
 
@@ -2028,10 +2055,7 @@ export default function ObsidianVault() {
                 <ZoomOut className="w-4 h-4" />
               </button>
               <button
-                onClick={() => {
-                  setGraphZoom(1);
-                  setGraphPan({ x: 0, y: 0 });
-                }}
+                onClick={handleResetZoom}
                 className="p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl transition"
                 title="Reset View (100%)"
               >
