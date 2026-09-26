@@ -145,11 +145,14 @@ export default function StudyMaterials() {
           setNotebookTitle(extractTitle(text));
         }
       } else {
-        alert('Failed to summarize text. Please try again.');
+        alert(response.data.error || 'Failed to summarize text. Please try again.');
       }
     } catch (error) {
       console.error('Summarization error:', error);
-      alert('Error connecting to server. Please try again.');
+      const errorMsg = (error.response && error.response.data && error.response.data.error)
+        ? error.response.data.error
+        : (error.message || 'Error connecting to server. Please try again.');
+      alert('Summarization error: ' + errorMsg);
     } finally {
       setLoading(false);
     }

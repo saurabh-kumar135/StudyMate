@@ -1,32 +1,76 @@
 /**
- * Gemini AI Service
+ * Gemini AI Service with Resilient Multi-Model Fallback
  * Handles all AI-related functionality for StudyMate
  */
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+let genAIInstance = null;
+
+function getGenAI() {
+  if (!genAIInstance) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      console.warn('GEMINI_API_KEY environment variable is not defined.');
+    }
+    genAIInstance = new GoogleGenerativeAI(key || '');
+  }
+  return genAIInstance;
+}
+
+// Cascading models in order of capability and availability
+const CANDIDATE_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3-flash-preview'
+];
+
+/**
+ * Executes a Gemini prompt with automatic retry and model fallback
+ */
+async function generateWithFallback(prompt) {
+  const client = getGenAI();
+  let lastError = null;
+
+  for (const modelName of CANDIDATE_MODELS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const model = client.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        if (text && text.trim().length > 0) {
+          return { success: true, text: text.trim(), modelUsed: modelName };
+        }
+      } catch (err) {
+        lastError = err;
+        console.warn('Gemini attempt failed for ' + modelName + ' (attempt ' + (attempt + 1) + '): ' + err.message);
+        // Short pause before next attempt
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    }
+  }
+
+  throw lastError || new Error('All Gemini models are currently unavailable. Please try again.');
+}
 
 /**
  * AI Tutor Chat - Answer student questions
  */
 async function chatWithAI(question, context = '') {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
-    const prompt = `You are a helpful AI tutor for students. 
-${context ? `Context: ${context}\n\n` : ''}
-Student Question: ${question}
+    const prompt = 'You are a helpful AI tutor for students.\n' +
+      (context ? 'Context: ' + context + '\n\n' : '') +
+      'Student Question: ' + question + '\n\n' +
+      'Provide a clear, educational answer that helps the student understand the concept.\n' +
+      'Use examples when helpful. Keep the tone friendly and encouraging.';
 
-Provide a clear, educational answer that helps the student understand the concept. 
-Use examples when helpful. Keep the tone friendly and encouraging.`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const result = await generateWithFallback(prompt);
     return {
       success: true,
-      answer: response.text()
+      answer: result.text,
+      modelUsed: result.modelUsed
     };
   } catch (error) {
     console.error('AI Chat Error:', error);
@@ -42,31 +86,38 @@ Use examples when helpful. Keep the tone friendly and encouraging.`;
  */
 async function summarizeText(text, summaryLength = 'medium') {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
+      return {
+        success: false,
+        error: 'Please provide valid text to summarize.'
+      };
+    }
+
     const lengthInstructions = {
       short: 'in 2-3 sentences',
       medium: 'in 1-2 paragraphs',
       long: 'in 3-4 paragraphs with key points'
     };
-    
-    const prompt = `Summarize the following text ${lengthInstructions[summaryLength] || lengthInstructions.medium}:
 
-${text}
+    // Protect against huge texts that exceed input token window
+    const maxChars = 40000;
+    const sanitizedText = text.length > maxChars ? text.slice(0, maxChars) + '\n[Truncated for length]' : text;
 
-Provide a clear, concise summary that captures the main ideas and key points.`;
+    const prompt = 'Summarize the following text ' + (lengthInstructions[summaryLength] || lengthInstructions.medium) + ':\n\n' +
+      sanitizedText + '\n\n' +
+      'Provide a clear, concise summary that captures the main ideas and key points.';
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const result = await generateWithFallback(prompt);
     return {
       success: true,
-      summary: response.text()
+      summary: result.text,
+      modelUsed: result.modelUsed
     };
   } catch (error) {
     console.error('Summarization Error:', error);
     return {
       success: false,
-      error: 'Failed to summarize text. Please try again.'
+      error: error.message || 'Failed to summarize text. Please try again.'
     };
   }
 }
@@ -76,36 +127,29 @@ Provide a clear, concise summary that captures the main ideas and key points.`;
  */
 async function generateQuiz(topic, numQuestions = 5, difficulty = 'medium') {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
-    const prompt = `Generate ${numQuestions} multiple-choice quiz questions about: ${topic}
+    const prompt = 'Generate ' + numQuestions + ' multiple-choice quiz questions about: ' + topic + '\n\n' +
+      'Difficulty level: ' + difficulty + '\n\n' +
+      'Format each question as JSON with this structure:\n' +
+      '{\n' +
+      '  "question": "Question text",\n' +
+      '  "options": ["Option A", "Option B", "Option C", "Option D"],\n' +
+      '  "correctAnswer": 0,\n' +
+      '  "explanation": "Why this answer is correct"\n' +
+      '}\n\n' +
+      'Return a JSON array of questions. Make questions educational and test understanding, not just memorization.';
 
-Difficulty level: ${difficulty}
-
-Format each question as JSON with this structure:
-{
-  "question": "Question text",
-  "options": ["Option A", "Option B", "Option C", "Option D"],
-  "correctAnswer": 0,
-  "explanation": "Why this answer is correct"
-}
-
-Return a JSON array of questions. Make questions educational and test understanding, not just memorization.`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    
-    // Parse the JSON response
-    const text = response.text();
+    const result = await generateWithFallback(prompt);
+    const text = result.text;
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const questions = JSON.parse(jsonMatch[0]);
       return {
         success: true,
-        questions
+        questions,
+        modelUsed: result.modelUsed
       };
     }
-    
+
     return {
       success: false,
       error: 'Failed to parse quiz questions'
@@ -124,30 +168,26 @@ Return a JSON array of questions. Make questions educational and test understand
  */
 async function explainConcept(concept, level = 'beginner') {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    
     const levelInstructions = {
       beginner: 'Explain in simple terms suitable for someone new to this topic. Use analogies and examples.',
       intermediate: 'Provide a detailed explanation with technical details and examples.',
       advanced: 'Give an in-depth explanation with advanced concepts, edge cases, and real-world applications.'
     };
-    
-    const prompt = `Explain the concept: ${concept}
 
-Level: ${level}
-${levelInstructions[level] || levelInstructions.beginner}
+    const prompt = 'Explain the concept: ' + concept + '\n\n' +
+      'Level: ' + level + '\n' +
+      (levelInstructions[level] || levelInstructions.beginner) + '\n\n' +
+      'Include:\n' +
+      '1. Clear definition\n' +
+      '2. Key points\n' +
+      '3. Practical examples\n' +
+      '4. Common misconceptions (if any)';
 
-Include:
-1. Clear definition
-2. Key points
-3. Practical examples
-4. Common misconceptions (if any)`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const result = await generateWithFallback(prompt);
     return {
       success: true,
-      explanation: response.text()
+      explanation: result.text,
+      modelUsed: result.modelUsed
     };
   } catch (error) {
     console.error('Concept Explanation Error:', error);
@@ -163,7 +203,6 @@ Include:
  */
 async function summarizeStudySession(transcriptText, topic = 'General Study Session') {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const prompt = 'You are an expert AI Academic Assistant for StudyMate.\n' +
       'Analyze the following transcript from a live study session between student(s) and teacher(s) on the topic "' + topic + '".\n\n' +
       'Transcript:\n' + transcriptText + '\n\n' +
@@ -178,14 +217,14 @@ async function summarizeStudySession(transcriptText, topic = 'General Study Sess
       '  ]\n' +
       '}';
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const result = await generateWithFallback(prompt);
+    const text = result.text;
     const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
     try {
       const parsed = JSON.parse(cleaned);
-      return { success: true, data: parsed };
+      return { success: true, data: parsed, modelUsed: result.modelUsed };
     } catch (parseErr) {
-      return { success: true, data: { summary: text, keyConcepts: [], actionItems: [], flashcards: [] } };
+      return { success: true, data: { summary: text, keyConcepts: [], actionItems: [], flashcards: [] }, modelUsed: result.modelUsed };
     }
   } catch (error) {
     console.error('Session Summarization Error:', error);
