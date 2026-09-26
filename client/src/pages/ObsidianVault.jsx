@@ -69,9 +69,9 @@ export default function ObsidianVault() {
   const [draggedNode, setDraggedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
   const [physicsSettings, setPhysicsSettings] = useState({
-    repulsion: 1800,
-    linkDistance: 120,
-    gravity: 0.05,
+    repulsion: 4200,
+    linkDistance: 210,
+    gravity: 0.008,
     showLabels: true,
     showUnresolved: true,
     nodeSizeScale: 1
@@ -482,17 +482,34 @@ export default function ObsidianVault() {
 
     // Simulation Step Function
     const stepPhysics = () => {
-      // 1. Coulomb Repulsion between all node pairs
+      // 1. Hard Collision Avoidance + Coulomb Repulsion (Obsidian Engine)
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const n1 = nodes[i];
           const n2 = nodes[j];
           const dx = n2.x - n1.x;
           const dy = n2.y - n1.y;
-          const distSq = dx * dx + dy * dy + 100;
+          const distSq = dx * dx + dy * dy + 1;
           const dist = Math.sqrt(distSq);
-          const force = (physicsSettings.repulsion / distSq);
 
+          // Hard collision constraint: nodes + labels never collapse or overlap
+          const minDist = n1.radius + n2.radius + 75;
+          if (dist < minDist && dist > 0) {
+            const overlap = (minDist - dist) * 0.5;
+            const nx = (dx / dist) * overlap;
+            const ny = (dy / dist) * overlap;
+            if (draggedNode?.id !== n1.id) {
+              n1.x -= nx;
+              n1.y -= ny;
+            }
+            if (draggedNode?.id !== n2.id) {
+              n2.x += nx;
+              n2.y += ny;
+            }
+          }
+
+          // Broad dispersion repulsion
+          const force = (physicsSettings.repulsion / (distSq + 250));
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
 
@@ -507,7 +524,7 @@ export default function ObsidianVault() {
         }
       }
 
-      // 2. Hooke's Spring Attraction along edges
+      // 2. Hooke's Spring Attraction along edges with relaxed elasticity
       links.forEach(l => {
         const s = l.sourceNode;
         const t = l.targetNode;
@@ -515,7 +532,7 @@ export default function ObsidianVault() {
         const dy = t.y - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const displacement = dist - physicsSettings.linkDistance;
-        const force = displacement * 0.04;
+        const force = displacement * 0.02; // Soft spring prevents clumping
 
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
@@ -530,7 +547,7 @@ export default function ObsidianVault() {
         }
       });
 
-      // 3. Central Gravity Pull
+      // 3. Gentle Central Gravity (keeps graph centered without crushing nodes together)
       nodes.forEach(n => {
         if (draggedNode?.id === n.id) return;
         const dx = width / 2 - n.x;
@@ -538,9 +555,9 @@ export default function ObsidianVault() {
         n.vx += dx * physicsSettings.gravity;
         n.vy += dy * physicsSettings.gravity;
 
-        // Damping / Friction
-        n.vx *= 0.85;
-        n.vy *= 0.85;
+        // Smooth damping
+        n.vx *= 0.82;
+        n.vy *= 0.82;
 
         n.x += n.vx;
         n.y += n.vy;
@@ -557,15 +574,22 @@ export default function ObsidianVault() {
       ctx.translate(-width / 2, -height / 2);
 
       // Render Links
+      const hasFocus = Boolean(hoveredNode || activeNoteId);
       links.forEach(l => {
         const isHovered = hoveredNode && (l.sourceNode.id === hoveredNode.id || l.targetNode.id === hoveredNode.id);
         const isActive = activeNoteId && (l.sourceNode.id === activeNoteId || l.targetNode.id === activeNoteId);
+        const isConnected = isHovered || isActive;
+
+        ctx.save();
+        if (hasFocus && !isConnected) {
+          ctx.globalAlpha = 0.12;
+        }
 
         ctx.beginPath();
         ctx.moveTo(l.sourceNode.x, l.sourceNode.y);
         ctx.lineTo(l.targetNode.x, l.targetNode.y);
 
-        if (isHovered || isActive) {
+        if (isConnected) {
           ctx.strokeStyle = '#60a5fa';
           ctx.lineWidth = 2.5;
         } else if (l.type === 'explicit') {
@@ -578,6 +602,7 @@ export default function ObsidianVault() {
         }
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.restore();
       });
 
       // Render Nodes
@@ -590,6 +615,16 @@ export default function ObsidianVault() {
           (l.sourceNode.id === hoveredNode.id && l.targetNode.id === n.id) ||
           (l.targetNode.id === hoveredNode.id && l.sourceNode.id === n.id)
         );
+        const isConnectedToActive = activeNoteId && links.some(l => 
+          (l.sourceNode.id === activeNoteId && l.targetNode.id === n.id) ||
+          (l.targetNode.id === activeNoteId && l.sourceNode.id === n.id)
+        );
+        const isFocused = isHovered || isActive || isConnectedToHover || isConnectedToActive;
+
+        ctx.save();
+        if (hasFocus && !isFocused) {
+          ctx.globalAlpha = 0.25;
+        }
 
         // Node Glow Ring for Active/Hovered
         if (isHovered || isActive) {
@@ -698,6 +733,7 @@ export default function ObsidianVault() {
             ctx.restore();
           }
         }
+        ctx.restore();
       });
 
       ctx.restore();
@@ -757,6 +793,15 @@ export default function ObsidianVault() {
         }
       } else {
         selectNote(clicked.id);
+        const c = canvasRef.current;
+        if (c) {
+          const w = c.width / window.devicePixelRatio;
+          const h = c.height / window.devicePixelRatio;
+          setGraphPan({
+            x: (w / 2 - (clicked.x || w / 2)) * graphZoom,
+            y: (h / 2 - (clicked.y || h / 2)) * graphZoom
+          });
+        }
       }
     } else {
       setIsDraggingCanvas(true);
@@ -808,6 +853,24 @@ export default function ObsidianVault() {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
     setGraphZoom(prev => Math.min(3.5, Math.max(0.3, prev * zoomFactor)));
+  };
+
+  const handleFocusNode = (searchTitle) => {
+    const candidates = simNodesRef.current.length > 0 ? simNodesRef.current : (graphData.nodes || []);
+    const target = candidates.find(n => (n.title || n.label || '').toLowerCase().includes(searchTitle.toLowerCase()));
+    if (target && canvasRef.current) {
+      const c = canvasRef.current;
+      const w = c.width / window.devicePixelRatio;
+      const h = c.height / window.devicePixelRatio;
+      selectNote(target.id);
+      setHoveredNode(target);
+      const targetZoom = 1.45;
+      setGraphZoom(targetZoom);
+      setGraphPan({
+        x: (w / 2 - (target.x || w / 2)) * targetZoom,
+        y: (h / 2 - (target.y || h / 2)) * targetZoom
+      });
+    }
   };
 
   return (
@@ -1500,6 +1563,25 @@ export default function ObsidianVault() {
                     <span>{cat}</span>
                   </button>
                 ))}
+              </div>
+
+              {/* Obsidian Quick Focus Topic Pills */}
+              <div className="flex items-center gap-1 bg-gray-900/90 backdrop-blur-md p-1 rounded-xl border border-gray-800 text-xs">
+                <span className="text-gray-500 font-mono text-[10px] px-1.5 uppercase">Focus:</span>
+                <button
+                  onClick={() => handleFocusNode('Data Structures')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border border-blue-500/30 transition flex items-center gap-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  Data Structures
+                </button>
+                <button
+                  onClick={() => handleFocusNode('System Design')}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border border-cyan-500/30 transition flex items-center gap-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  System Design
+                </button>
               </div>
             </div>
 
