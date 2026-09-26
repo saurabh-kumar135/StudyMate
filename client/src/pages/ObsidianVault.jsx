@@ -15,13 +15,120 @@ import {
 import { API_URL } from '../config/api';
 import { useTheme } from '../context/ThemeContext';
 
+const DEMO_GRAPH_NODES = [
+  {
+    id: 'seed-dsa',
+    title: 'Data Structures & Algorithms',
+    label: 'Data Structures & Algorithms',
+    category: 'Computer Science',
+    tags: ['dsa', 'fundamentals', 'programming'],
+    folder: 'Core Concepts',
+    content: '# Data Structures & Algorithms\nCore foundations of software engineering.\nConnects directly to [[Graph Theory]] and [[Dynamic Programming]].\n\n- [x] Master array and pointer operations\n- [ ] Tree traversals (DFS/BFS)\n- [ ] Shortest path algorithms',
+    summary: 'Core foundations of algorithmic problem solving, time complexity, and memory management.',
+    color: '#3b82f6',
+    degree: 3
+  },
+  {
+    id: 'seed-graph',
+    title: 'Graph Theory',
+    label: 'Graph Theory',
+    category: 'Computer Science',
+    tags: ['graphs', 'algorithms', 'networking'],
+    folder: 'Algorithms',
+    content: '# Graph Theory\nMathematical structures modeling pairwise relations between objects.\nEssential for [[WebRTC Protocols]] topology and [[Neural Networks]] computational graphs.',
+    summary: 'Graph structures, traversals, connectivity, and shortest path algorithms.',
+    color: '#10b981',
+    degree: 3
+  },
+  {
+    id: 'seed-dp',
+    title: 'Dynamic Programming',
+    label: 'Dynamic Programming',
+    category: 'Computer Science',
+    tags: ['algorithms', 'optimization', 'math'],
+    folder: 'Algorithms',
+    content: '# Dynamic Programming\nAlgorithmic paradigm that solves complex problems by breaking them down into simpler subproblems.\nApplies to [[Data Structures & Algorithms]] and [[Neural Networks]].',
+    summary: 'Overlapping subproblems, memoization, tabulation, and state transitions.',
+    color: '#8b5cf6',
+    degree: 2
+  },
+  {
+    id: 'seed-ai',
+    title: 'Neural Networks & Deep Learning',
+    label: 'Neural Networks & Deep Learning',
+    category: 'Machine Learning',
+    tags: ['ai', 'deep-learning', 'math'],
+    folder: 'AI & ML',
+    content: '# Neural Networks & Deep Learning\nComputational models inspired by biological neural networks.\nRelies on [[Dynamic Programming]] and matrix operations.',
+    summary: 'Perceptrons, backpropagation, activation functions, and deep representations.',
+    color: '#ec4899',
+    degree: 2
+  },
+  {
+    id: 'seed-webrtc',
+    title: 'WebRTC Protocols',
+    label: 'WebRTC Protocols',
+    category: 'Networking',
+    tags: ['webrtc', 'p2p', 'realtime'],
+    folder: 'Networking',
+    content: '# WebRTC Protocols\nReal-time peer-to-peer audio, video, and data communication across the web.\nImplements [[Graph Theory]] mesh topologies and interacts with [[System Design & Scalability]].',
+    summary: 'Peer-to-peer media streaming, ICE candidates, SDP negotiation, and NAT traversal.',
+    color: '#f59e0b',
+    degree: 2
+  },
+  {
+    id: 'seed-sysdesign',
+    title: 'System Design & Scalability',
+    label: 'System Design & Scalability',
+    category: 'Engineering',
+    tags: ['architecture', 'backend', 'scalability'],
+    folder: 'Architecture',
+    content: '# System Design & Scalability\nArchitecting distributed systems that scale to millions of concurrent users.\nDirectly utilizes [[Database Indexing & Optimization]] and [[WebRTC Protocols]].',
+    summary: 'High availability, load balancing, caching, microservices, and distributed architecture.',
+    color: '#06b6d4',
+    degree: 2
+  },
+  {
+    id: 'seed-db',
+    title: 'Database Indexing & Optimization',
+    label: 'Database Indexing & Optimization',
+    category: 'Engineering',
+    tags: ['database', 'mongodb', 'performance'],
+    folder: 'Databases',
+    content: '# Database Indexing & Optimization\nTechniques for accelerating data retrieval and query execution.\nUses [[Data Structures & Algorithms]] such as B-Trees to optimize [[System Design & Scalability]].',
+    summary: 'B-Trees, inverted indexes, query planners, and read/write trade-offs in SQL and NoSQL.',
+    color: '#6366f1',
+    degree: 2
+  }
+];
+
+const DEMO_GRAPH_LINKS = [
+  { source: 'seed-dsa', target: 'seed-graph', label: 'mentions', type: 'explicit', weight: 1.5 },
+  { source: 'seed-dsa', target: 'seed-dp', label: 'mentions', type: 'explicit', weight: 1.5 },
+  { source: 'seed-dsa', target: 'seed-db', label: 'shares #algorithms', type: 'tag', weight: 1.2 },
+  { source: 'seed-graph', target: 'seed-webrtc', label: 'mentions', type: 'explicit', weight: 1.4 },
+  { source: 'seed-dp', target: 'seed-ai', label: 'mentions', type: 'explicit', weight: 1.3 },
+  { source: 'seed-webrtc', target: 'seed-sysdesign', label: 'mentions', type: 'explicit', weight: 1.5 },
+  { source: 'seed-sysdesign', target: 'seed-db', label: 'mentions', type: 'explicit', weight: 1.6 }
+];
+
+const FALLBACK_GRAPH_DATA = {
+  nodes: DEMO_GRAPH_NODES,
+  links: DEMO_GRAPH_LINKS,
+  categories: ['Computer Science', 'Machine Learning', 'Networking', 'Engineering'],
+  tags: ['dsa', 'algorithms', 'ai', 'architecture', 'scalability', 'performance'],
+  folders: ['Core Concepts', 'Algorithms', 'AI & ML', 'Networking', 'Architecture', 'Databases']
+};
+
 export default function ObsidianVault() {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme } = useTheme();
 
   // Primary Views: 'editor' | 'graph' | 'split'
-  const [viewMode, setViewMode] = useState('editor');
+  const [viewMode, setViewMode] = useState(
+    location.pathname.includes('/graph') || location.search.includes('tab=graph') ? 'graph' : 'editor'
+  );
   const [editorTab, setEditorTab] = useState('preview'); // 'edit' | 'preview' | 'split'
 
   // Vault Notes & Graph Data
@@ -102,23 +209,10 @@ export default function ObsidianVault() {
 
         // Auto-seed starter notes if vault is completely empty
         if (validNotes.length === 0) {
-          try {
-            const seedRes = await axios.post(`${API_URL}/api/notebooks/graph/seed`, {}, { withCredentials: true });
-            if (seedRes.data && seedRes.data.success && seedRes.data.seededCount > 0) {
-              const retryRes = await axios.get(`${API_URL}/api/notebooks/graph/data`, { withCredentials: true });
-              if (retryRes.data && retryRes.data.success) {
-                setGraphData(retryRes.data);
-                const retryValid = retryRes.data.nodes.filter(n => !n.isGhost);
-                setNotes(retryValid);
-                if (retryValid.length > 0) {
-                  selectNote(retryValid[0].id, retryValid);
-                }
-                return;
-              }
-            }
-          } catch (seedErr) {
-            console.warn('Auto-seed attempt skipped:', seedErr);
-          }
+          setGraphData(FALLBACK_GRAPH_DATA);
+          setNotes(DEMO_GRAPH_NODES);
+          selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
+          return;
         }
 
         // Select specific note or default to first note
@@ -126,9 +220,16 @@ export default function ObsidianVault() {
         if (targetId) {
           selectNote(targetId, validNotes);
         }
+      } else {
+        setGraphData(FALLBACK_GRAPH_DATA);
+        setNotes(DEMO_GRAPH_NODES);
+        selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
       }
     } catch (err) {
-      console.error('Error fetching vault data:', err);
+      console.warn('Using starter graph fallback:', err);
+      setGraphData(FALLBACK_GRAPH_DATA);
+      setNotes(DEMO_GRAPH_NODES);
+      selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
     } finally {
       setLoading(false);
     }
