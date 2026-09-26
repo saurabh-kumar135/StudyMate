@@ -179,6 +179,15 @@ export default function StudyMaterials() {
       }, { withCredentials: true });
 
       if (response.data.success) {
+        try {
+          const rawVault = localStorage.getItem('studymate_vault_notes');
+          let vaultList = rawVault ? JSON.parse(rawVault) : [];
+          if (Array.isArray(vaultList)) {
+            vaultList.unshift(response.data.notebook);
+            localStorage.setItem('studymate_vault_notes', JSON.stringify(vaultList));
+          }
+        } catch (storageErr) {}
+
         setShowSaveDialog(false);
         alert('Notebook saved successfully!');
         // Navigate to the saved notebook
@@ -188,7 +197,46 @@ export default function StudyMaterials() {
       }
     } catch (error) {
       console.error('Save error:', error);
-      alert('Error saving notebook. Please try again.');
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        const localId = 'local_' + Date.now();
+        const localNote = {
+          _id: localId,
+          id: localId,
+          title: titleToSave,
+          category: detectCategory(text),
+          content: '# ' + titleToSave + '\n\n' + summary + '\n\n## Original Text\n' + text,
+          summary: summary,
+          originalText: text,
+          folder: 'Notes',
+          tags: [detectCategory(text).toLowerCase().replace(/\s+/g, '-')],
+          color: '#3b82f6',
+          createdAt: new Date().toISOString()
+        };
+        try {
+          const rawVault = localStorage.getItem('studymate_vault_notes');
+          let vaultList = rawVault ? JSON.parse(rawVault) : [];
+          if (!Array.isArray(vaultList)) vaultList = [];
+          vaultList.unshift(localNote);
+          localStorage.setItem('studymate_vault_notes', JSON.stringify(vaultList));
+        } catch (storageErr) {
+          console.warn('LocalStorage vault save failed:', storageErr);
+        }
+
+        setShowSaveDialog(false);
+        const shouldLogin = window.confirm(
+          'You are not currently logged in (or your session expired).\n\nYour notebook has been safely saved to your Obsidian Vault so you will not lose your work!\n\nClick OK to log in and sync to the cloud, or Cancel to open it in Obsidian Vault.'
+        );
+        if (shouldLogin) {
+          navigate('/login');
+        } else {
+          navigate('/app/obsidian');
+        }
+      } else {
+        const errorMsg = (error.response && error.response.data && error.response.data.error)
+          ? error.response.data.error
+          : (error.message || 'Please try again.');
+        alert('Error saving notebook: ' + errorMsg);
+      }
     } finally {
       setSaving(false);
     }
