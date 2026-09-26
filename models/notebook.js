@@ -42,6 +42,28 @@ const notebookSchema = mongoose.Schema({
   sourceFileName: {
     type: String
   },
+  content: {
+    type: String,
+    default: ''
+  },
+  folder: {
+    type: String,
+    default: 'Notes'
+  },
+  links: [{
+    targetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Notebook'
+    },
+    targetTitle: String
+  }],
+  aliases: [{
+    type: String
+  }],
+  color: {
+    type: String,
+    default: '#3b82f6'
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -15,6 +15,7 @@ import Home from './pages/Home';
 import AgentShowcase from './pages/AgentShowcase';
 import RetentionAnalytics from './pages/RetentionAnalytics';
 import StudyRoom from './pages/StudyRoom';
+import ObsidianVault from './pages/ObsidianVault';
 import './App.css';
 
 function App() {
@@ -34,6 +35,8 @@ function App() {
           {/* Direct Route Aliases to /app/* */}
           <Route path="/dashboard" element={<Navigate to="/app/dashboard" replace />} />
           <Route path="/retention" element={<Navigate to="/app/retention" replace />} />
+          <Route path="/vault" element={<Navigate to="/app/vault" replace />} />
+          <Route path="/graph" element={<Navigate to="/app/graph" replace />} />
           <Route path="/ai-tutor" element={<Navigate to="/app/ai-tutor" replace />} />
           <Route path="/materials" element={<Navigate to="/app/materials" replace />} />
           <Route path="/quiz" element={<Navigate to="/app/quiz" replace />} />
@@ -51,6 +54,8 @@ function App() {
                 <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/retention" element={<RetentionAnalytics />} />
+                <Route path="/vault" element={<ObsidianVault />} />
+                <Route path="/graph" element={<ObsidianVault />} />
                 <Route path="/ai-tutor" element={<AITutor />} />
                 <Route path="/materials" element={<StudyMaterials />} />
                 <Route path="/quiz" element={<Quiz />} />

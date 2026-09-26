@@ -12,7 +12,9 @@ import {
   Plus,
   Loader,
   Users,
-  GraduationCap
+  GraduationCap,
+  Network,
+  Sparkles
 } from 'lucide-react';
 
 import { API_URL } from '../config/api';
@@ -150,7 +152,7 @@ export default function Dashboard() {
 
       {/* AI Retention Intelligence Banner */}
       <div style={{
-        marginBottom: isMobile ? '20px' : '28px',
+        marginBottom: '16px',
         padding: isMobile ? '16px' : '20px 24px',
         borderRadius: '16px',
         background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)',
@@ -190,6 +192,54 @@ export default function Dashboard() {
           }}
         >
           View Retention AI Insights →
+        </Link>
+      </div>
+
+      {/* Obsidian Knowledge Graph Banner */}
+      <div style={{
+        marginBottom: isMobile ? '20px' : '28px',
+        padding: isMobile ? '16px' : '20px 24px',
+        borderRadius: '16px',
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.09) 0%, rgba(99, 102, 241, 0.09) 100%)',
+        border: '1px solid rgba(139, 92, 246, 0.25)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+            <Network size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Obsidian Knowledge Graph & Markdown Vault
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa', fontWeight: '600' }}>
+                NEW FEATURE
+              </span>
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Force-directed 2D particle simulation, [[WikiLinks]] autocomplete, backlinks & AI auto-linking.
+            </div>
+          </div>
+        </div>
+        <Link
+          to="/app/vault"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
+            background: 'linear-gradient(to right, #8b5cf6, #6366f1)',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: '600',
+            textDecoration: 'none'
+          }}
+        >
+          Open Knowledge Graph →
         </Link>
       </div>
 
@@ -302,7 +352,17 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div>
         <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Quick Study Tools</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'), gap: isMobile ? '16px' : '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(220px, 1fr))'), gap: isMobile ? '16px' : '20px' }}>
+          <Link to="/app/vault" style={{ ...cardStyle, textDecoration: 'none' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #8b5cf6, #6366f1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Network style={{ width: '28px', height: '28px', color: 'white' }} />
+              </div>
+            </div>
+            <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>Knowledge Graph</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Obsidian vault & bi-directional links</p>
+          </Link>
+
           <Link to="/study-room" style={{ ...cardStyle, textDecoration: 'none' }}>
             <div style={{ marginBottom: '20px' }}>
               <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #06b6d4, #3b82f6)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
