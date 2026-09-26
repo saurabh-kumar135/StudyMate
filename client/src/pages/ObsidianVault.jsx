@@ -9,7 +9,7 @@ import {
   RotateCcw, Compass, Hash, ArrowUpRight, Trash2, Save,
   Check, X, ChevronRight, ChevronDown, Layers, BookOpen,
   ArrowLeft, RefreshCw, HelpCircle, ExternalLink, Calendar,
-  Clock, AlignLeft
+  Clock, AlignLeft, Upload
 } from 'lucide-react';
 
 import { API_URL } from '../config/api';
@@ -120,6 +120,68 @@ const FALLBACK_GRAPH_DATA = {
   folders: ['Core Concepts', 'Algorithms', 'AI & ML', 'Networking', 'Architecture', 'Databases']
 };
 
+const extractWikiLinksFromText = (text) => {
+  if (!text) return [];
+  const matches = [];
+  const regex = /\[\[(.*?)\]\]/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    let target = match[1].split('|')[0].trim();
+    if (target) matches.push(target);
+  }
+  return matches;
+};
+
+const parseMarkdownFile = (rawText, fileName) => {
+  let title = fileName.replace(/\.md$/, '').replace(/_/g, ' ');
+  let category = 'General';
+  let folder = 'Notes';
+  let tags = [];
+  let color = '#3b82f6';
+  let content = rawText || '';
+
+  if (rawText && rawText.startsWith('---')) {
+    const endFm = rawText.indexOf('---', 3);
+    if (endFm !== -1) {
+      const fmContent = rawText.slice(3, endFm);
+      content = rawText.slice(endFm + 3).trim();
+      fmContent.split('\n').forEach(line => {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+          const key = parts[0].trim().toLowerCase();
+          const val = parts.slice(1).join(':').trim().replace(/^["']|["']$/g, '');
+          if (key === 'title' && val) title = val;
+          if (key === 'category' && val) category = val;
+          if (key === 'folder' && val) folder = val;
+          if (key === 'color' && val) color = val;
+          if (key === 'tags') {
+            const tagStr = val.replace(/^\[|\]$/g, '');
+            tags = tagStr.split(',').map(t => t.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+          }
+        }
+      });
+    }
+  }
+
+  if (!title || title.length === 0) {
+    const h1Match = content.match(/^#\s+(.+)$/m);
+    if (h1Match) title = h1Match[1].trim();
+  }
+
+  return {
+    id: 'import_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    title,
+    label: title,
+    category,
+    folder,
+    tags,
+    color,
+    content,
+    summary: content.substring(0, 160) + '...',
+    wikiTargets: extractWikiLinksFromText(content)
+  };
+};
+
 export default function ObsidianVault() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -141,6 +203,9 @@ export default function ObsidianVault() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
+  const [importNotice, setImportNotice] = useState('');
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Note Edit Form State
   const [editTitle, setEditTitle] = useState('');
@@ -248,6 +313,122 @@ export default function ObsidianVault() {
       alert('Failed to load starter notes. Please make sure you are logged in.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Import Markdown Vault Files (.md) directly from local system
+  const handleImportVaultFiles = async (event) => {
+    const files = Array.from(event.target?.files || []);
+    if (files.length === 0) return;
+    await processAndImportFiles(files);
+  };
+
+  const processAndImportFiles = async (fileList) => {
+    try {
+      setLoading(true);
+      const parsedList = [];
+      for (const file of fileList) {
+        const rawText = await file.text();
+        const item = parseMarkdownFile(rawText, file.name);
+        parsedList.push(item);
+      }
+
+      if (parsedList.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      // Merge with existing notes avoiding duplicates by title
+      const existingTitles = new Set(notes.map(n => (n.title || '').toLowerCase().trim()));
+      const uniqueNewNotes = parsedList.filter(n => !existingTitles.has((n.title || '').toLowerCase().trim()));
+      const combinedNotes = [...notes, ...uniqueNewNotes];
+      setNotes(combinedNotes);
+
+      // Rebuild graph nodes
+      const titleToIdMap = new Map();
+      combinedNotes.forEach(n => {
+        titleToIdMap.set((n.title || '').toLowerCase().trim(), n.id);
+      });
+
+      const updatedNodes = combinedNotes.map(n => {
+        const linksCount = (n.wikiTargets || extractWikiLinksFromText(n.content || '')).length;
+        return {
+          id: n.id,
+          title: n.title,
+          label: n.title,
+          category: n.category || 'General',
+          tags: n.tags || [],
+          folder: n.folder || 'Notes',
+          content: n.content || '',
+          summary: n.summary || '',
+          color: n.color || '#3b82f6',
+          degree: Math.max(1, linksCount)
+        };
+      });
+
+      // Build bi-directional links based on [[wiki-links]]
+      const updatedLinks = [...(graphData.links || [])];
+      uniqueNewNotes.forEach(item => {
+        const targets = item.wikiTargets || extractWikiLinksFromText(item.content || '');
+        targets.forEach(targetTitle => {
+          const targetId = titleToIdMap.get(targetTitle.toLowerCase().trim());
+          if (targetId && targetId !== item.id) {
+            const alreadyExists = updatedLinks.some(l =>
+              (l.source === item.id && l.target === targetId) ||
+              (l.source === targetId && l.target === item.id)
+            );
+            if (!alreadyExists) {
+              updatedLinks.push({
+                source: item.id,
+                target: targetId,
+                label: 'mentions',
+                type: 'explicit',
+                weight: 1.5
+              });
+            }
+          }
+        });
+      });
+
+      setGraphData({
+        ...graphData,
+        nodes: updatedNodes,
+        links: updatedLinks
+      });
+
+      selectNote(parsedList[0].id, combinedNotes);
+      setViewMode('graph');
+      setImportNotice('Successfully imported ' + parsedList.length + ' markdown notes! Knowledge Graph updated.');
+      setTimeout(() => setImportNotice(''), 6000);
+    } catch (err) {
+      console.error('Error importing vault files:', err);
+      alert('Error importing markdown files. Please check file format.');
+    } finally {
+      setLoading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingFiles(true);
+  };
+
+  const handleDragLeave = (e) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDraggingFiles(false);
+  };
+
+  const handleDropFiles = async (e) => {
+    e.preventDefault();
+    setIsDraggingFiles(false);
+    const dropped = Array.from(e.dataTransfer?.files || []).filter(f =>
+      f.name.endsWith('.md') || f.name.endsWith('.markdown') || f.name.endsWith('.txt')
+    );
+    if (dropped.length > 0) {
+      await processAndImportFiles(dropped);
     }
   };
 
@@ -1065,6 +1246,24 @@ export default function ObsidianVault() {
             </button>
           )}
 
+          {/* Import Markdown Vault (.md) */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportVaultFiles}
+            multiple
+            accept=".md,.markdown,.txt"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+            title="Import markdown files (.md) from your laptop to generate or expand the Knowledge Graph"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Import Notes</span>
+          </button>
+
           <button
             onClick={() => handleCreateNote('New Concept')}
             className="px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-xl text-xs font-bold transition flex items-center gap-1.5"
@@ -1075,10 +1274,34 @@ export default function ObsidianVault() {
         </div>
       </header>
 
+      {/* Import Notification Banner */}
+      {importNotice && (
+        <div className="bg-emerald-600/20 border-b border-emerald-500/30 text-emerald-300 px-4 py-2 text-xs font-semibold flex items-center justify-between z-20">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span>{importNotice}</span>
+          </div>
+          <button onClick={() => setImportNotice('')} className="text-emerald-400 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* ========================================================= */}
       {/* MAIN VAULT BODY */}
       {/* ========================================================= */}
-      <div className="flex-1 flex overflow-hidden h-[calc(100vh-120px)]">
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDropFiles}
+        className="flex-1 flex overflow-hidden h-[calc(100vh-120px)] relative"
+      >
+        {isDraggingFiles && (
+          <div className="absolute inset-0 bg-blue-600/20 border-2 border-dashed border-blue-400 z-50 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none">
+            <Upload className="w-12 h-12 text-blue-400 mb-2 animate-bounce" />
+            <p className="text-base font-bold text-white">Drop Markdown (.md) notes to import into Knowledge Graph</p>
+          </div>
+        )}
         {/* ========================================== */}
         {/* LEFT SIDEBAR: OBSIDIAN FILE EXPLORER */}
         {/* ========================================== */}
