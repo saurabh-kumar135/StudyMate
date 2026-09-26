@@ -416,7 +416,10 @@ router.get('/graph/data', requireAuth, async (req, res) => {
 // Auto-link all notes across user vault
 router.post('/graph/auto-link', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.user._id;
+    const userId = req.session && req.session.user ? req.session.user._id : null;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
     const notebooks = await Notebook.find({ user: userId });
 
     let newlyLinkedCount = 0;
@@ -427,16 +430,17 @@ router.post('/graph/auto-link', requireAuth, async (req, res) => {
       let modified = false;
 
       for (const other of notebooks) {
+        if (!other || !other._id || !other.title) continue;
         if (other._id.toString() === nb._id.toString()) continue;
-        const otherTitle = other.title.trim();
+        const otherTitle = String(other.title).trim();
         if (otherTitle.length < 3) continue;
 
         // Regex that matches title if not already surrounded by [[ ... ]]
-        const escaped = otherTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = new RegExp(`(?<!\\[\\[)\\b(${escaped})\\b(?!\\]\\])`, 'gi');
+        const escaped = otherTitle.replace(/[.*+?^()|[\]{}\\]/g, (c) => '\\' + c);
+        const pattern = new RegExp('(?<!\\[\\[)\\b(' + escaped + ')\\b(?!\\]\\])', 'gi');
 
         if (pattern.test(content)) {
-          content = content.replace(pattern, `[[$1]]`);
+          content = content.replace(pattern, (match, g1) => '[[' + g1 + ']]');
           modified = true;
           newlyLinkedCount++;
         }
@@ -444,6 +448,8 @@ router.post('/graph/auto-link', requireAuth, async (req, res) => {
 
       if (modified) {
         nb.content = content;
+        if (!nb.originalText) nb.originalText = content;
+        if (!nb.summary) nb.summary = content.substring(0, 200);
         nb.links = extractWikiLinks(content).map(targetTitle => ({ targetTitle }));
         nb.updatedAt = new Date();
         await nb.save();
@@ -458,7 +464,7 @@ router.post('/graph/auto-link', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error auto-linking notes:', error);
-    res.status(500).json({ success: false, error: 'Failed to auto-link notes' });
+    res.status(500).json({ success: false, error: error.message || 'Failed to auto-link notes' });
   }
 });
 

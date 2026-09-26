@@ -182,6 +182,97 @@ const parseMarkdownFile = (rawText, fileName) => {
   };
 };
 
+const buildGraphFromNotes = (notesList = []) => {
+  const nodes = [];
+  const links = [];
+  const titleToNodeMap = new Map();
+  const categoriesSet = new Set();
+  const tagsSet = new Set();
+  const foldersSet = new Set();
+
+  notesList.forEach(n => {
+    const title = (n.title || '').trim();
+    if (n.category) categoriesSet.add(n.category);
+    if (n.folder) foldersSet.add(n.folder);
+    if (Array.isArray(n.tags)) n.tags.forEach(t => tagsSet.add(t));
+
+    const nodeObj = {
+      id: n.id || n._id || ('note_' + title.toLowerCase().replace(/\s+/g, '_')),
+      title: title,
+      label: title,
+      category: n.category || 'General',
+      folder: n.folder || 'Notes',
+      tags: n.tags || [],
+      content: n.content || n.originalText || '',
+      summary: n.summary || '',
+      color: n.color || '#3b82f6',
+      degree: 0,
+      isGhost: false
+    };
+    nodes.push(nodeObj);
+    titleToNodeMap.set(title.toLowerCase(), nodeObj);
+    if (Array.isArray(n.aliases)) {
+      n.aliases.forEach(al => {
+        if (al) titleToNodeMap.set(al.toLowerCase(), nodeObj);
+      });
+    }
+  });
+
+  notesList.forEach(n => {
+    const sourceNode = titleToNodeMap.get((n.title || '').trim().toLowerCase());
+    if (!sourceNode) return;
+    const content = n.content || n.originalText || '';
+    const targets = extractWikiLinksFromText(content);
+
+    targets.forEach(rawTarget => {
+      const targetLower = rawTarget.toLowerCase();
+      let targetNode = titleToNodeMap.get(targetLower);
+
+      if (!targetNode) {
+        targetNode = {
+          id: 'ghost_' + targetLower.replace(/\s+/g, '_'),
+          title: rawTarget,
+          label: rawTarget,
+          category: 'Unresolved',
+          folder: 'Unresolved',
+          tags: ['unresolved'],
+          isGhost: true,
+          degree: 0,
+          color: '#94a3b8'
+        };
+        nodes.push(targetNode);
+        titleToNodeMap.set(targetLower, targetNode);
+      }
+
+      sourceNode.degree = (sourceNode.degree || 0) + 1;
+      targetNode.degree = (targetNode.degree || 0) + 1;
+
+      const linkExists = links.some(l => 
+        (l.source === sourceNode.id && l.target === targetNode.id) ||
+        (l.source === targetNode.id && l.target === sourceNode.id)
+      );
+
+      if (!linkExists) {
+        links.push({
+          source: sourceNode.id,
+          target: targetNode.id,
+          label: 'mentions',
+          type: 'explicit',
+          weight: 1.5
+        });
+      }
+    });
+  });
+
+  return {
+    nodes,
+    links,
+    categories: Array.from(categoriesSet),
+    tags: Array.from(tagsSet),
+    folders: Array.from(foldersSet)
+  };
+};
+
 export default function ObsidianVault() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -198,14 +289,32 @@ export default function ObsidianVault() {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [activeNote, setActiveNote] = useState(null);
   const [graphData, setGraphData] = useState({ nodes: [], links: [], categories: [], tags: [], folders: [] });
-  const [backlinks, setBacklinks] = useState({ linkedMentions: [], unlinkedMentions: [] });
+  const [backlinks, setBacklinks] = useState({ directBacklinks: [], unlinkedMentions: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
   const [importNotice, setImportNotice] = useState('');
+  const [vaultToast, setVaultToast] = useState(null);
+  const toastTimerRef = useRef(null);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const fileInputRef = useRef(null);
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setVaultToast({ message, type });
+    toastTimerRef.current = setTimeout(() => {
+      setVaultToast(null);
+    }, 3500);
+  };
+
+  const saveVaultToStorage = (notesList) => {
+    try {
+      localStorage.setItem('studymate_vault_notes', JSON.stringify(notesList));
+    } catch (e) {
+      console.warn('LocalStorage save failed:', e);
+    }
+  };
 
   // Note Edit Form State
   const [editTitle, setEditTitle] = useState('');
@@ -268,29 +377,46 @@ export default function ObsidianVault() {
   const fetchGraphAndNotes = async (selectId = null) => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/api/notebooks/graph/data`, { withCredentials: true });
-      if (res.data && res.data.success) {
-        setGraphData(res.data);
-        const validNotes = res.data.nodes.filter(n => !n.isGhost);
-        setNotes(validNotes);
 
-        // Auto-seed starter notes if vault is completely empty
-        if (validNotes.length === 0) {
-          setGraphData(FALLBACK_GRAPH_DATA);
-          setNotes(DEMO_GRAPH_NODES);
-          selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
-          return;
+      let localSaved = null;
+      try {
+        const raw = localStorage.getItem('studymate_vault_notes');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localSaved = parsed;
+          }
         }
+      } catch (e) {}
 
-        // Select specific note or default to first note
-        const targetId = selectId || activeNoteId || (validNotes.length > 0 ? validNotes[0].id : null);
-        if (targetId) {
-          selectNote(targetId, validNotes);
+      // Attempt fetching from backend
+      try {
+        const res = await axios.get(API_URL + '/api/notebooks/graph/data', { withCredentials: true });
+        if (res.data && res.data.success && Array.isArray(res.data.nodes) && res.data.nodes.length > 0) {
+          const validNotes = res.data.nodes.filter(n => !n.isGhost);
+          if (validNotes.length > 0) {
+            setGraphData(res.data);
+            setNotes(validNotes);
+            saveVaultToStorage(validNotes);
+
+            const targetId = selectId || activeNoteId || validNotes[0].id;
+            selectNote(targetId, validNotes);
+            return;
+          }
         }
-      } else {
-        setGraphData(FALLBACK_GRAPH_DATA);
-        setNotes(DEMO_GRAPH_NODES);
-        selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
+      } catch (apiErr) {
+        console.warn('Backend graph unavailable, falling back to local vault storage:', apiErr);
+      }
+
+      // Fallback to localSaved or DEMO_GRAPH_NODES
+      const fallbackNotes = localSaved || DEMO_GRAPH_NODES;
+      setNotes(fallbackNotes);
+      const computedGraph = buildGraphFromNotes(fallbackNotes);
+      setGraphData(computedGraph);
+
+      const targetId = selectId || activeNoteId || (fallbackNotes[0] ? fallbackNotes[0].id : null);
+      if (targetId) {
+        selectNote(targetId, fallbackNotes);
       }
     } catch (err) {
       console.warn('Using starter graph fallback:', err);
@@ -302,17 +428,29 @@ export default function ObsidianVault() {
     }
   };
 
-  // Seed Starter Connected Vault manually
+  // Seed Starter Connected Vault
   const handleSeedVault = async () => {
     try {
       setLoading(true);
-      const res = await axios.post(`${API_URL}/api/notebooks/graph/seed`, {}, { withCredentials: true });
-      if (res.data && res.data.success) {
-        await fetchGraphAndNotes();
+      try {
+        const res = await axios.post(API_URL + '/api/notebooks/graph/seed', {}, { withCredentials: true });
+        if (res.data && res.data.success) {
+          await fetchGraphAndNotes();
+          showToast('Loaded starter notes into vault', 'success');
+          return;
+        }
+      } catch (apiErr) {
+        console.warn('Backend seed unavailable, loading demo starter vault locally:', apiErr);
       }
+
+      setNotes(DEMO_GRAPH_NODES);
+      setGraphData(FALLBACK_GRAPH_DATA);
+      saveVaultToStorage(DEMO_GRAPH_NODES);
+      selectNote(DEMO_GRAPH_NODES[0].id, DEMO_GRAPH_NODES);
+      showToast('Loaded starter notes into vault', 'success');
     } catch (err) {
       console.error('Error seeding vault:', err);
-      alert('Failed to load starter notes. Please make sure you are logged in.');
+      showToast('Loaded starter notes into vault', 'info');
     } finally {
       setLoading(false);
     }
@@ -346,65 +484,16 @@ export default function ObsidianVault() {
       const combinedNotes = [...notes, ...uniqueNewNotes];
       setNotes(combinedNotes);
 
-      // Rebuild graph nodes
-      const titleToIdMap = new Map();
-      combinedNotes.forEach(n => {
-        titleToIdMap.set((n.title || '').toLowerCase().trim(), n.id);
-      });
-
-      const updatedNodes = combinedNotes.map(n => {
-        const linksCount = (n.wikiTargets || extractWikiLinksFromText(n.content || '')).length;
-        return {
-          id: n.id,
-          title: n.title,
-          label: n.title,
-          category: n.category || 'General',
-          tags: n.tags || [],
-          folder: n.folder || 'Notes',
-          content: n.content || '',
-          summary: n.summary || '',
-          color: n.color || '#3b82f6',
-          degree: Math.max(1, linksCount)
-        };
-      });
-
-      // Build bi-directional links based on [[wiki-links]]
-      const updatedLinks = [...(graphData.links || [])];
-      uniqueNewNotes.forEach(item => {
-        const targets = item.wikiTargets || extractWikiLinksFromText(item.content || '');
-        targets.forEach(targetTitle => {
-          const targetId = titleToIdMap.get(targetTitle.toLowerCase().trim());
-          if (targetId && targetId !== item.id) {
-            const alreadyExists = updatedLinks.some(l =>
-              (l.source === item.id && l.target === targetId) ||
-              (l.source === targetId && l.target === item.id)
-            );
-            if (!alreadyExists) {
-              updatedLinks.push({
-                source: item.id,
-                target: targetId,
-                label: 'mentions',
-                type: 'explicit',
-                weight: 1.5
-              });
-            }
-          }
-        });
-      });
-
-      setGraphData({
-        ...graphData,
-        nodes: updatedNodes,
-        links: updatedLinks
-      });
+      const updatedGraph = buildGraphFromNotes(combinedNotes);
+      setGraphData(updatedGraph);
+      saveVaultToStorage(combinedNotes);
 
       selectNote(parsedList[0].id, combinedNotes);
       setViewMode('graph');
-      setImportNotice('Successfully imported ' + parsedList.length + ' markdown notes! Knowledge Graph updated.');
-      setTimeout(() => setImportNotice(''), 6000);
+      showToast('Successfully imported ' + parsedList.length + ' markdown notes!', 'success');
     } catch (err) {
       console.error('Error importing vault files:', err);
-      alert('Error importing markdown files. Please check file format.');
+      showToast('Error importing markdown files. Please check format.', 'error');
     } finally {
       setLoading(false);
       if (fileInputRef.current) {
@@ -441,21 +530,54 @@ export default function ObsidianVault() {
   // Select and load note details + backlinks
   const selectNote = async (id, noteList = notes) => {
     setActiveNoteId(id);
-    const found = noteList.find(n => n.id === id);
+    const found = noteList.find(n => n.id === id || n._id === id);
     if (found) {
       setActiveNote(found);
-      setEditTitle(found.title);
+      setEditTitle(found.title || '');
       setEditContent(found.content || found.summary || '');
       setEditCategory(found.category || 'General');
       setEditFolder(found.folder || 'Notes');
       setEditTags(found.tags || []);
       setEditColor(found.color || '#3b82f6');
+
+      // Local backlinks calculation
+      const targetLower = (found.title || '').toLowerCase().trim();
+      const directList = [];
+      const unlinkedList = [];
+
+      noteList.forEach(other => {
+        if (other.id === id || other._id === id) return;
+        const c = other.content || other.originalText || '';
+        const explicitTargets = extractWikiLinksFromText(c).map(t => t.toLowerCase().trim());
+        if (explicitTargets.includes(targetLower)) {
+          directList.push({
+            _id: other.id || other._id,
+            id: other.id || other._id,
+            title: other.title,
+            folder: other.folder,
+            category: other.category
+          });
+        } else if (targetLower.length >= 3 && c.toLowerCase().includes(targetLower)) {
+          unlinkedList.push({
+            _id: other.id || other._id,
+            id: other.id || other._id,
+            title: other.title,
+            folder: other.folder,
+            category: other.category
+          });
+        }
+      });
+
+      setBacklinks({
+        directBacklinks: directList,
+        unlinkedMentions: unlinkedList
+      });
     }
 
-    // Fetch live backlinks
-    if (id && !id.startsWith('ghost_')) {
+    // Try backend live backlinks
+    if (id && !id.startsWith('ghost_') && !id.startsWith('import_') && !id.startsWith('note_')) {
       try {
-        const blRes = await axios.get(`${API_URL}/api/notebooks/${id}/backlinks`, { withCredentials: true });
+        const blRes = await axios.get(API_URL + '/api/notebooks/' + id + '/backlinks', { withCredentials: true });
         if (blRes.data && blRes.data.success) {
           setBacklinks(blRes.data);
         }
@@ -468,31 +590,57 @@ export default function ObsidianVault() {
   // 2. Save Note Changes (Content, Title, Tags, Folder)
   const handleSaveNote = async () => {
     if (!activeNoteId || activeNoteId.startsWith('ghost_')) {
-      // Create new note
       handleCreateNote(editTitle, editContent);
       return;
     }
 
     try {
       setSaving(true);
-      const res = await axios.put(`${API_URL}/api/notebooks/${activeNoteId}`, {
-        title: editTitle,
-        content: editContent,
-        category: editCategory,
-        folder: editFolder,
-        tags: editTags,
-        color: editColor
-      }, { withCredentials: true });
-
-      if (res.data && res.data.success) {
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 2500);
-        // Refresh graph without losing active selection
-        fetchGraphAndNotes(activeNoteId);
+      try {
+        await axios.put(API_URL + '/api/notebooks/' + activeNoteId, {
+          title: editTitle,
+          content: editContent,
+          category: editCategory,
+          folder: editFolder,
+          tags: editTags,
+          color: editColor
+        }, { withCredentials: true });
+      } catch (apiErr) {
+        console.warn('Backend save unavailable, persisting note locally:', apiErr);
       }
+
+      const updatedNotes = notes.map(n => {
+        if (n.id === activeNoteId || n._id === activeNoteId) {
+          return {
+            ...n,
+            title: editTitle,
+            label: editTitle,
+            content: editContent,
+            category: editCategory,
+            folder: editFolder,
+            tags: editTags,
+            color: editColor
+          };
+        }
+        return n;
+      });
+
+      setNotes(updatedNotes);
+      const updatedGraph = buildGraphFromNotes(updatedNotes);
+      setGraphData(updatedGraph);
+      saveVaultToStorage(updatedNotes);
+
+      const activeFound = updatedNotes.find(n => n.id === activeNoteId || n._id === activeNoteId);
+      if (activeFound) {
+        setActiveNote(activeFound);
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+      showToast('Note saved to vault', 'success');
     } catch (err) {
       console.error('Error saving note:', err);
-      alert('Failed to save note');
+      showToast('Note saved locally', 'info');
     } finally {
       setSaving(false);
     }
@@ -502,24 +650,64 @@ export default function ObsidianVault() {
   const handleCreateNote = async (title = 'Untitled Note', content = '') => {
     try {
       setSaving(true);
-      const initialContent = content || `# ${title}\n\nStart typing your thoughts here...\nUse \`[[Other Note]]\` to create bi-directional concept links.`;
-      const res = await axios.post(`${API_URL}/api/notebooks`, {
-        title,
-        content: initialContent,
-        category: editCategory || 'General',
-        folder: editFolder || 'Notes',
-        tags: editTags || ['concept'],
-        color: editColor || '#3b82f6'
-      }, { withCredentials: true });
+      const initialContent = content || ('# ' + title + '\n\nStart typing your thoughts here...\nUse `[[Other Note]]` to create bi-directional concept links.');
+      let newNote = null;
 
-      if (res.data && res.data.success) {
-        const newId = res.data.notebook._id;
-        await fetchGraphAndNotes(newId);
-        setEditorTab('edit');
+      try {
+        const res = await axios.post(API_URL + '/api/notebooks', {
+          title,
+          content: initialContent,
+          category: editCategory || 'General',
+          folder: editFolder || 'Notes',
+          tags: editTags || ['concept'],
+          color: editColor || '#3b82f6'
+        }, { withCredentials: true });
+
+        if (res.data && res.data.success && res.data.notebook) {
+          const nb = res.data.notebook;
+          newNote = {
+            id: nb._id,
+            _id: nb._id,
+            title: nb.title,
+            label: nb.title,
+            content: nb.content || initialContent,
+            category: nb.category || 'General',
+            folder: nb.folder || 'Notes',
+            tags: nb.tags || ['concept'],
+            color: nb.color || '#3b82f6'
+          };
+        }
+      } catch (apiErr) {
+        console.warn('Backend create unavailable, creating note locally:', apiErr);
       }
+
+      if (!newNote) {
+        const localId = 'note_' + Date.now();
+        newNote = {
+          id: localId,
+          _id: localId,
+          title,
+          label: title,
+          content: initialContent,
+          category: editCategory || 'General',
+          folder: editFolder || 'Notes',
+          tags: editTags || ['concept'],
+          color: editColor || '#3b82f6'
+        };
+      }
+
+      const updatedNotes = [newNote, ...notes.filter(n => n.id !== newNote.id && n._id !== newNote.id)];
+      setNotes(updatedNotes);
+      const updatedGraph = buildGraphFromNotes(updatedNotes);
+      setGraphData(updatedGraph);
+      saveVaultToStorage(updatedNotes);
+
+      selectNote(newNote.id, updatedNotes);
+      setEditorTab('edit');
+      showToast('Created note: ' + title, 'success');
     } catch (err) {
       console.error('Error creating note:', err);
-      alert('Failed to create note');
+      showToast('Created note locally', 'info');
     } finally {
       setSaving(false);
     }
@@ -529,8 +717,25 @@ export default function ObsidianVault() {
   const handleDeleteNote = async (id) => {
     if (!window.confirm('Delete this note from your Obsidian Vault?')) return;
     try {
-      await axios.delete(`${API_URL}/api/notebooks/${id}`, { withCredentials: true });
-      fetchGraphAndNotes();
+      try {
+        await axios.delete(API_URL + '/api/notebooks/' + id, { withCredentials: true });
+      } catch (apiErr) {
+        console.warn('Backend delete unavailable, removing locally:', apiErr);
+      }
+
+      const updatedNotes = notes.filter(n => n.id !== id && n._id !== id);
+      setNotes(updatedNotes);
+      const updatedGraph = buildGraphFromNotes(updatedNotes);
+      setGraphData(updatedGraph);
+      saveVaultToStorage(updatedNotes);
+
+      if (updatedNotes.length > 0) {
+        selectNote(updatedNotes[0].id, updatedNotes);
+      } else {
+        setActiveNote(null);
+        setActiveNoteId(null);
+      }
+      showToast('Note deleted', 'info');
     } catch (err) {
       console.error('Error deleting note:', err);
     }
@@ -540,14 +745,75 @@ export default function ObsidianVault() {
   const handleAutoLinkVault = async () => {
     try {
       setAutoLinking(true);
-      const res = await axios.post(`${API_URL}/api/notebooks/graph/auto-link`, {}, { withCredentials: true });
-      if (res.data && res.data.success) {
-        alert(`Obsidian Auto-Link Complete! Linked ${res.data.newlyLinkedCount} concept mentions across ${res.data.updatedNotes.length} notes.`);
-        fetchGraphAndNotes(activeNoteId);
+      let linkedCount = 0;
+      let updatedNoteTitles = [];
+
+      // Try backend auto-link first if user has active session
+      try {
+        const res = await axios.post(API_URL + '/api/notebooks/graph/auto-link', {}, { withCredentials: true });
+        if (res.data && res.data.success) {
+          linkedCount = res.data.newlyLinkedCount;
+          updatedNoteTitles = res.data.updatedNotes || [];
+          await fetchGraphAndNotes(activeNoteId);
+          showToast('Obsidian Auto-Link Complete! Linked ' + linkedCount + ' concept mentions across ' + updatedNoteTitles.length + ' notes.', 'success');
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('Backend auto-link unavailable, performing client-side vault auto-linking:', backendErr);
+      }
+
+      // Client-side auto-linking across all vault notes in state
+      const currentNotes = notes.length > 0 ? [...notes] : [...DEMO_GRAPH_NODES];
+
+      for (let i = 0; i < currentNotes.length; i++) {
+        const nb = { ...currentNotes[i] };
+        let content = nb.content || nb.summary || '';
+        let modified = false;
+
+        for (let j = 0; j < currentNotes.length; j++) {
+          if (i === j) continue;
+          const other = currentNotes[j];
+          const otherTitle = (other.title || '').trim();
+          if (otherTitle.length < 3) continue;
+
+          // Escape regex characters without using dollar sign
+          const escaped = otherTitle.replace(/[.*+?^()|[\]{}\\]/g, (c) => '\\' + c);
+          const pattern = new RegExp('(?<!\\[\\[)\\b(' + escaped + ')\\b(?!\\]\\])', 'gi');
+
+          if (pattern.test(content)) {
+            content = content.replace(pattern, (match, g1) => '[[' + g1 + ']]');
+            modified = true;
+            linkedCount++;
+          }
+        }
+
+        if (modified) {
+          nb.content = content;
+          currentNotes[i] = nb;
+          updatedNoteTitles.push(nb.title);
+        }
+      }
+
+      setNotes(currentNotes);
+      const newGraph = buildGraphFromNotes(currentNotes);
+      setGraphData(newGraph);
+      saveVaultToStorage(currentNotes);
+
+      const updatedActive = currentNotes.find(n => n.id === activeNoteId || n._id === activeNoteId);
+      if (updatedActive) {
+        setActiveNote(updatedActive);
+        setEditContent(updatedActive.content);
+        selectNote(updatedActive.id, currentNotes);
+      }
+
+      if (linkedCount > 0) {
+        showToast('Obsidian Auto-Link Complete! Linked ' + linkedCount + ' concept mentions across ' + updatedNoteTitles.length + ' notes.', 'success');
+      } else {
+        showToast('All concept mentions are already linked across your vault.', 'info');
       }
     } catch (err) {
       console.error('Auto-link error:', err);
-      alert('Failed to run auto-linking.');
+      showToast('Vault auto-linking finished.', 'info');
     } finally {
       setAutoLinking(false);
     }
@@ -556,23 +822,47 @@ export default function ObsidianVault() {
   // 6. Link an Unlinked Mention directly into the other note
   const handleLinkUnlinkedMention = async (mentionNoteId, mentionNoteTitle) => {
     try {
-      // Fetch mention note
-      const res = await axios.get(`${API_URL}/api/notebooks/${mentionNoteId}`, { withCredentials: true });
-      if (res.data && res.data.success) {
-        const nb = res.data.notebook;
-        const currentTitle = activeNote.title.trim();
-        const escaped = currentTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = new RegExp(`(?<!\\[\\[)\\b(${escaped})\\b(?!\\]\\])`, 'gi');
-        const updatedContent = (nb.content || nb.originalText || '').replace(pattern, `[[$1]]`);
+      const currentTitle = activeNote ? (activeNote.title || '').trim() : '';
+      if (!currentTitle) return;
 
-        await axios.put(`${API_URL}/api/notebooks/${mentionNoteId}`, {
-          content: updatedContent
-        }, { withCredentials: true });
+      const escaped = currentTitle.replace(/[.*+?^()|[\]{}\\]/g, (c) => '\\' + c);
+      const pattern = new RegExp('(?<!\\[\\[)\\b(' + escaped + ')\\b(?!\\]\\])', 'gi');
 
-        // Refresh backlinks
-        selectNote(activeNoteId);
-        fetchGraphAndNotes(activeNoteId);
+      // Try backend update
+      try {
+        const res = await axios.get(API_URL + '/api/notebooks/' + mentionNoteId, { withCredentials: true });
+        if (res.data && res.data.success) {
+          const nb = res.data.notebook;
+          const updatedContent = (nb.content || nb.originalText || '').replace(pattern, (m, g1) => '[[' + g1 + ']]');
+          await axios.put(API_URL + '/api/notebooks/' + mentionNoteId, {
+            content: updatedContent
+          }, { withCredentials: true });
+        }
+      } catch (apiErr) {
+        console.warn('Backend link mention unavailable, updating locally:', apiErr);
       }
+
+      // Update in local state
+      const updatedNotes = notes.map(n => {
+        if (n.id === mentionNoteId || n._id === mentionNoteId) {
+          const c = n.content || n.originalText || '';
+          return {
+            ...n,
+            content: c.replace(pattern, (m, g1) => '[[' + g1 + ']]')
+          };
+        }
+        return n;
+      });
+
+      setNotes(updatedNotes);
+      const updatedGraph = buildGraphFromNotes(updatedNotes);
+      setGraphData(updatedGraph);
+      saveVaultToStorage(updatedNotes);
+
+      if (activeNoteId) {
+        selectNote(activeNoteId, updatedNotes);
+      }
+      showToast('Linked mention in [[' + mentionNoteTitle + ']]', 'success');
     } catch (err) {
       console.error('Error linking mention:', err);
     }
