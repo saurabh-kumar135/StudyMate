@@ -61,6 +61,7 @@ export default function ObsidianVault() {
   const canvasRef = useRef(null);
   const localCanvasRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const simNodesRef = useRef([]);
   const [graphZoom, setGraphZoom] = useState(1);
   const [graphPan, setGraphPan] = useState({ x: 0, y: 0 });
   const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
@@ -468,6 +469,7 @@ export default function ObsidianVault() {
     });
 
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    simNodesRef.current = nodes;
 
     // Construct valid edges with node references
     const links = graphData.links.map(l => ({
@@ -613,12 +615,88 @@ export default function ObsidianVault() {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Node Label
-        if (physicsSettings.showLabels || isHovered || isActive || isConnectedToHover) {
-          ctx.font = `${isActive ? 'bold 13px' : '11px'} Inter, sans-serif`;
-          ctx.fillStyle = theme === 'light' ? '#111827' : '#f3f4f6';
+        // Scale-Adaptive Obsidian Node Labels & Annotations
+        const shouldShowLabel = 
+          isHovered || 
+          isActive || 
+          isConnectedToHover || 
+          (physicsSettings.showLabels && (
+            graphZoom >= 0.55 || 
+            (graphZoom >= 0.35 && (n.degree > 0 || n.radius >= 11)) ||
+            (graphZoom < 0.35 && (n.degree >= 2 || n.radius >= 14))
+          ));
+
+        if (shouldShowLabel) {
+          // Counter-scale font so it stays perfectly legible across all zoom levels
+          const baseScreenSize = (isActive || isHovered) ? 12.5 : 11;
+          const canvasFontSize = baseScreenSize / graphZoom;
+          const fontWeight = (isActive || isHovered) ? '600 ' : '500 ';
+          ctx.font = fontWeight + canvasFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(n.label || n.title, n.x, n.y + n.radius + 14);
+          ctx.textBaseline = 'top';
+
+          // Constant screen spacing below the node edge
+          const labelY = n.y + n.radius + (9 / graphZoom);
+          const rawLabel = n.label || n.title || 'Untitled';
+          const labelText = (!isHovered && !isActive && graphZoom < 0.7 && rawLabel.length > 20) 
+            ? rawLabel.slice(0, 18) + '..' 
+            : rawLabel;
+
+          // High-Contrast Text Halo (Obsidian-style outline to prevent edge collision)
+          ctx.save();
+          ctx.lineJoin = 'round';
+          ctx.miterLimit = 2;
+          ctx.lineWidth = Math.max(2.5, 4 / graphZoom);
+          ctx.strokeStyle = theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(13, 17, 23, 0.95)';
+          ctx.strokeText(labelText, n.x, labelY);
+
+          // Text Fill
+          ctx.fillStyle = (isActive || isHovered)
+            ? (theme === 'light' ? '#2563eb' : '#60a5fa')
+            : (n.isGhost ? '#9ca3af' : (theme === 'light' ? '#111827' : '#f3f4f6'));
+          ctx.fillText(labelText, n.x, labelY);
+          ctx.restore();
+
+          // Sub-annotation Pill: Category & Link count when hovered, active, or zoomed close
+          const showSubAnnotation = isHovered || isActive || (graphZoom >= 1.25 && (n.category || n.degree > 0));
+          if (showSubAnnotation) {
+            const annotationText = n.category 
+              ? (n.degree > 0 ? n.category + ' • ' + n.degree + ' links' : n.category)
+              : (n.degree > 0 ? n.degree + ' links' : (n.folder || 'Note'));
+
+            const subCanvasFontSize = 9.5 / graphZoom;
+            ctx.save();
+            ctx.font = '500 ' + subCanvasFontSize.toFixed(1) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+
+            const subY = labelY + canvasFontSize + (4 / graphZoom);
+            const textMetrics = ctx.measureText(annotationText);
+            const pillPadX = 6 / graphZoom;
+            const pillPadY = 2 / graphZoom;
+            const pillWidth = textMetrics.width + (pillPadX * 2);
+            const pillHeight = subCanvasFontSize + (pillPadY * 2);
+            const pillX = n.x - (pillWidth / 2);
+            const pillRadius = 4 / graphZoom;
+
+            // Pill Background
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(pillX, subY - pillPadY, pillWidth, pillHeight, pillRadius);
+            } else {
+              ctx.rect(pillX, subY - pillPadY, pillWidth, pillHeight);
+            }
+            ctx.fillStyle = theme === 'light' ? 'rgba(241, 245, 249, 0.92)' : 'rgba(30, 41, 59, 0.92)';
+            ctx.fill();
+            ctx.lineWidth = 1 / graphZoom;
+            ctx.strokeStyle = isHovered ? 'rgba(96, 165, 250, 0.6)' : (theme === 'light' ? 'rgba(203, 213, 225, 0.8)' : 'rgba(71, 85, 105, 0.8)');
+            ctx.stroke();
+
+            // Pill Text
+            ctx.fillStyle = isHovered ? '#60a5fa' : (theme === 'light' ? '#475569' : '#94a3b8');
+            ctx.fillText(annotationText, n.x, subY);
+            ctx.restore();
+          }
         }
       });
 
@@ -663,7 +741,8 @@ export default function ObsidianVault() {
     const simY = (mouseY - graphPan.y - height / 2) / graphZoom + height / 2;
 
     // Check if clicked a node
-    const clicked = graphData.nodes.find(n => {
+    const candidateNodes = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
+    const clicked = candidateNodes.find(n => {
       const dx = (n.x || 0) - simX;
       const dy = (n.y || 0) - simY;
       const r = Math.max(10, n.radius || 12);
@@ -673,7 +752,7 @@ export default function ObsidianVault() {
     if (clicked) {
       setDraggedNode(clicked);
       if (clicked.isGhost) {
-        if (window.confirm(`Create new note "${clicked.title}"?`)) {
+        if (window.confirm('Create new note "' + clicked.title + '"?')) {
           handleCreateNote(clicked.title);
         }
       } else {
@@ -709,7 +788,8 @@ export default function ObsidianVault() {
       });
     } else {
       // Hover detection
-      const hovered = graphData.nodes.find(n => {
+      const activeCandidates = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
+      const hovered = activeCandidates.find(n => {
         const dx = (n.x || 0) - simX;
         const dy = (n.y || 0) - simY;
         const r = Math.max(12, n.radius || 12);
@@ -1422,6 +1502,65 @@ export default function ObsidianVault() {
                 ))}
               </div>
             </div>
+
+            {/* Obsidian Node Annotation Inspector HUD (Bottom-Left) */}
+            {(hoveredNode || activeNote) && (
+              <div className="absolute bottom-6 left-6 z-20 max-w-xs sm:max-w-sm bg-gray-900/95 backdrop-blur-xl border border-gray-800 rounded-2xl p-4 shadow-2xl text-white transition-all animate-in fade-in slide-in-from-bottom-2">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="w-3 h-3 rounded-full shrink-0"
+                      style={{ backgroundColor: (hoveredNode || activeNote).color || '#3b82f6' }}
+                    />
+                    <h4 className="text-sm font-bold truncate">
+                      {(hoveredNode || activeNote).title || (hoveredNode || activeNote).label}
+                    </h4>
+                  </div>
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                    {(hoveredNode || activeNote).category || 'General'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-gray-400 mb-2 font-mono">
+                  <span>{(hoveredNode || activeNote).folder || 'Notes'}</span>
+                  <span>•</span>
+                  <span className="text-blue-400">
+                    {((hoveredNode || activeNote).degree || 0) + ' links'}
+                  </span>
+                  {Boolean((hoveredNode || activeNote).wordCount) && (
+                    <>
+                      <span>•</span>
+                      <span>{((hoveredNode || activeNote).wordCount || 0) + ' words'}</span>
+                    </>
+                  )}
+                </div>
+
+                {Boolean((hoveredNode || activeNote).summary) && (
+                  <p className="text-xs text-gray-300 line-clamp-2 mb-2 leading-relaxed">
+                    {(hoveredNode || activeNote).summary}
+                  </p>
+                )}
+
+                {Boolean((hoveredNode || activeNote).tags && (hoveredNode || activeNote).tags.length > 0) && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {(hoveredNode || activeNote).tags.slice(0, 3).map((tag, idx) => (
+                      <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
+                        {'#' + tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-[10px] text-gray-500 pt-1 border-t border-gray-800/60">
+                  <span className="italic">
+                    {hoveredNode ? (hoveredNode.isGhost ? 'Click node to create note' : 'Click node to open in editor') : 'Currently active note'}
+                  </span>
+                  <span className="font-mono text-gray-400">
+                    {'Zoom: ' + Math.round(graphZoom * 100) + '%'}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Floating Zoom & Physics Control Pill */}
             <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2 bg-gray-900/95 backdrop-blur-lg border border-gray-800 p-2 rounded-2xl shadow-2xl">
