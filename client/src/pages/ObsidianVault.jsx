@@ -99,6 +99,27 @@ export default function ObsidianVault() {
         const validNotes = res.data.nodes.filter(n => !n.isGhost);
         setNotes(validNotes);
 
+        // Auto-seed starter notes if vault is completely empty
+        if (validNotes.length === 0) {
+          try {
+            const seedRes = await axios.post(`${API_URL}/api/notebooks/graph/seed`, {}, { withCredentials: true });
+            if (seedRes.data && seedRes.data.success && seedRes.data.seededCount > 0) {
+              const retryRes = await axios.get(`${API_URL}/api/notebooks/graph/data`, { withCredentials: true });
+              if (retryRes.data && retryRes.data.success) {
+                setGraphData(retryRes.data);
+                const retryValid = retryRes.data.nodes.filter(n => !n.isGhost);
+                setNotes(retryValid);
+                if (retryValid.length > 0) {
+                  selectNote(retryValid[0].id, retryValid);
+                }
+                return;
+              }
+            }
+          } catch (seedErr) {
+            console.warn('Auto-seed attempt skipped:', seedErr);
+          }
+        }
+
         // Select specific note or default to first note
         const targetId = selectId || activeNoteId || (validNotes.length > 0 ? validNotes[0].id : null);
         if (targetId) {
@@ -107,6 +128,22 @@ export default function ObsidianVault() {
       }
     } catch (err) {
       console.error('Error fetching vault data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Seed Starter Connected Vault manually
+  const handleSeedVault = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.post(`${API_URL}/api/notebooks/graph/seed`, {}, { withCredentials: true });
+      if (res.data && res.data.success) {
+        await fetchGraphAndNotes();
+      }
+    } catch (err) {
+      console.error('Error seeding vault:', err);
+      alert('Failed to load starter notes. Please make sure you are logged in.');
     } finally {
       setLoading(false);
     }
@@ -773,6 +810,17 @@ export default function ObsidianVault() {
             <span className="hidden md:inline">{autoLinking ? 'Linking...' : 'Auto-Connect Concepts'}</span>
           </button>
 
+          {notes.length === 0 && (
+            <button
+              onClick={handleSeedVault}
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              title="Load connected starter notes into your vault"
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span>Load Starter Graph</span>
+            </button>
+          )}
+
           <button
             onClick={() => handleCreateNote('New Concept')}
             className="px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-xl text-xs font-bold transition flex items-center gap-1.5"
@@ -821,6 +869,35 @@ export default function ObsidianVault() {
 
           {/* Folder & Notes Tree */}
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {Object.keys(folderTree).length === 0 && (
+              <div className="p-4 text-center space-y-3 mt-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 mx-auto flex items-center justify-center">
+                  <Network className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[var(--text-primary)]">Vault is Empty</p>
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
+                    Start by creating a note or load connected CS & AI concepts.
+                  </p>
+                </div>
+                <div className="space-y-1.5 pt-1">
+                  <button
+                    onClick={handleSeedVault}
+                    className="w-full py-2 px-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+                  >
+                    <Network className="w-3.5 h-3.5" />
+                    <span>Load Starter Graph</span>
+                  </button>
+                  <button
+                    onClick={() => handleCreateNote('My First Note')}
+                    className="w-full py-1.5 px-3 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Note</span>
+                  </button>
+                </div>
+              </div>
+            )}
             {Object.keys(folderTree).map(folderName => (
               <div key={folderName} className="mb-2">
                 <button

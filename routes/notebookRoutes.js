@@ -274,7 +274,8 @@ router.get('/graph/data', requireAuth, async (req, res) => {
       const id = nb._id.toString();
       const cat = nb.category || 'General';
       categoriesSet.add(cat);
-      if (nb.folder) foldersSet.add(nb.folder);
+      const folderName = nb.folder || 'Notes';
+      foldersSet.add(folderName);
       (nb.tags || []).forEach(t => tagsSet.add(t));
 
       const noteContent = nb.content || nb.originalText || nb.summary || '';
@@ -458,6 +459,42 @@ router.post('/graph/auto-link', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error auto-linking notes:', error);
     res.status(500).json({ success: false, error: 'Failed to auto-link notes' });
+  }
+});
+
+// Seed starter connected knowledge vault notes for user
+router.post('/graph/seed', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.user._id;
+    let seededCount = 0;
+    for (const seed of DEFAULT_OBSIDIAN_SEEDS) {
+      const existing = await Notebook.findOne({ user: userId, title: seed.title });
+      if (!existing) {
+        const nb = new Notebook({
+          user: userId,
+          title: seed.title,
+          category: seed.category,
+          tags: seed.tags,
+          folder: seed.folder,
+          originalText: seed.content,
+          content: seed.content,
+          summary: seed.summary,
+          color: seed.color,
+          links: extractWikiLinks(seed.content).map(targetTitle => ({ targetTitle }))
+        });
+        await nb.save();
+        seededCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      seededCount,
+      message: seededCount > 0 ? `Seeded ${seededCount} connected notes into your knowledge vault.` : 'Knowledge vault already contains starter notes.'
+    });
+  } catch (error) {
+    console.error('Error seeding knowledge graph:', error);
+    res.status(500).json({ success: false, error: 'Failed to seed knowledge vault' });
   }
 });
 

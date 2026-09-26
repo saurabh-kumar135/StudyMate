@@ -119,11 +119,20 @@ app.use("/uploads", express.static(path.join(rootDir, 'uploads')))
 app.use("/host/uploads", express.static(path.join(rootDir, 'uploads')))
 app.use("/homes/uploads", express.static(path.join(rootDir, 'uploads')))
 
+const mongoSessionStore = new MongoDBStore({
+  uri: DB_PATH,
+  collection: 'sessions'
+});
+
+mongoSessionStore.on('error', function(error) {
+  console.log('MongoDBStore Error:', error);
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || "KnowledgeGate AI with Complete Coding",
   resave: false,
   saveUninitialized: false,
-
+  store: mongoSessionStore,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7,
     httpOnly: true,
