@@ -280,7 +280,7 @@ export default function ObsidianVault() {
 
   // Primary Views: 'editor' | 'graph' | 'split'
   const [viewMode, setViewMode] = useState(
-    location.pathname.includes('/graph') || location.search.includes('tab=graph') ? 'graph' : 'editor'
+    location.pathname.includes('/editor') || location.search.includes('tab=editor') ? 'editor' : 'graph'
   );
   const [editorTab, setEditorTab] = useState('preview'); // 'edit' | 'preview' | 'split'
 
@@ -289,7 +289,7 @@ export default function ObsidianVault() {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [activeNote, setActiveNote] = useState(null);
   const [graphData, setGraphData] = useState({ nodes: [], links: [], categories: [], tags: [], folders: [] });
-  const [backlinks, setBacklinks] = useState({ directBacklinks: [], unlinkedMentions: [] });
+  const [backlinks, setBacklinks] = useState({ linkedMentions: [], directBacklinks: [], unlinkedMentions: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -569,6 +569,7 @@ export default function ObsidianVault() {
       });
 
       setBacklinks({
+        linkedMentions: directList,
         directBacklinks: directList,
         unlinkedMentions: unlinkedList
       });
@@ -579,7 +580,11 @@ export default function ObsidianVault() {
       try {
         const blRes = await axios.get(API_URL + '/api/notebooks/' + id + '/backlinks', { withCredentials: true });
         if (blRes.data && blRes.data.success) {
-          setBacklinks(blRes.data);
+          setBacklinks({
+            linkedMentions: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
+            directBacklinks: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
+            unlinkedMentions: Array.isArray(blRes.data.unlinkedMentions) ? blRes.data.unlinkedMentions : []
+          });
         }
       } catch (e) {
         // silent catch
@@ -914,7 +919,8 @@ export default function ObsidianVault() {
   // Filter notes for the [[ autocomplete dropdown
   const filteredDropdownNotes = useMemo(() => {
     if (!linkSearchText) return notes.slice(0, 8);
-    return notes.filter(n => n.title.toLowerCase().includes(linkSearchText)).slice(0, 8);
+    const searchLower = (linkSearchText || '').toLowerCase();
+    return notes.filter(n => (n?.title || '').toLowerCase().includes(searchLower)).slice(0, 8);
   }, [notes, linkSearchText]);
 
   // Insert Markdown formatting snippet at cursor
@@ -936,13 +942,14 @@ export default function ObsidianVault() {
 
   // Filtered notes in File Explorer Sidebar
   const filteredVaultNotes = useMemo(() => {
+    const qLower = (searchQuery || '').toLowerCase();
     return notes.filter(note => {
       const matchSearch = !searchQuery || 
-        note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (note.content && note.content.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchTag = !selectedTagFilter || (note.tags && note.tags.includes(selectedTagFilter));
-      const matchCategory = !selectedCategoryFilter || note.category === selectedCategoryFilter;
-      const matchFolder = selectedFolder === 'all' || (note.folder || 'Notes') === selectedFolder;
+        (note?.title || '').toLowerCase().includes(qLower) ||
+        (note?.content && note.content.toLowerCase().includes(qLower));
+      const matchTag = !selectedTagFilter || (Array.isArray(note?.tags) && note.tags.includes(selectedTagFilter));
+      const matchCategory = !selectedCategoryFilter || note?.category === selectedCategoryFilter;
+      const matchFolder = selectedFolder === 'all' || (note?.folder || 'Notes') === selectedFolder;
       return matchSearch && matchTag && matchCategory && matchFolder;
     });
   }, [notes, searchQuery, selectedTagFilter, selectedCategoryFilter, selectedFolder]);
@@ -974,7 +981,7 @@ export default function ObsidianVault() {
         parts.push(rawText.substring(lastIndex, match.index));
       }
       const title = match[1].trim();
-      const targetNote = notes.find(n => n.title.toLowerCase() === title.toLowerCase());
+      const targetNote = notes.find(n => (n?.title || '').toLowerCase() === title.toLowerCase());
 
       parts.push(
         <button
@@ -1433,6 +1440,33 @@ export default function ObsidianVault() {
   const handleCanvasMouseUp = () => {
     setDraggedNode(null);
     setIsDraggingCanvas(false);
+  };
+
+  // Touch support for mobile devices
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleCanvasMouseDown({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => {}
+      });
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleCanvasMouseMove({
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        preventDefault: () => {}
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    handleCanvasMouseUp();
   };
 
   // Cursor-centered smooth zoom
@@ -2049,12 +2083,13 @@ export default function ObsidianVault() {
                   </div>
 
                   {/* Radiating Neighbor Nodes */}
-                  {backlinks.linkedMentions?.slice(0, 4).map((m, idx) => {
-                    const angle = (idx / Math.min(4, backlinks.linkedMentions.length)) * Math.PI * 2;
+                  {Array.isArray(backlinks?.linkedMentions) && backlinks.linkedMentions.slice(0, 4).map((m, idx) => {
+                    const totalLinks = Math.max(1, Math.min(4, backlinks.linkedMentions.length));
+                    const angle = (idx / totalLinks) * Math.PI * 2;
                     const x = Math.cos(angle) * 45;
                     const y = Math.sin(angle) * 45;
                     return (
-                      <React.Fragment key={m._id}>
+                      <React.Fragment key={m._id || m.id || idx}>
                         <div
                           className="absolute w-12 h-0.5 bg-blue-500/40 origin-left"
                           style={{
@@ -2064,22 +2099,22 @@ export default function ObsidianVault() {
                           }}
                         />
                         <button
-                          onClick={() => selectNote(m._id)}
+                          onClick={() => selectNote(m._id || m.id)}
                           className="absolute w-5 h-5 rounded-full bg-purple-500 text-white text-[10px] flex items-center justify-center shadow-md hover:scale-125 transition"
                           style={{
                             left: `calc(50% + ${x}px - 10px)`,
                             top: `calc(50% + ${y}px - 10px)`
                           }}
-                          title={`Linked: ${m.title}`}
+                          title={`Linked: ${m.title || 'Note'}`}
                         >
-                          {m.title.charAt(0)}
+                          {(m.title || 'N').charAt(0)}
                         </button>
                       </React.Fragment>
                     );
                   })}
                 </div>
                 <p className="text-[11px] text-[var(--text-secondary)] text-center">
-                  {backlinks.linkedMentions?.length || 0} direct links in neighborhood
+                  {(backlinks?.linkedMentions?.length || 0)} direct links in neighborhood
                 </p>
               </div>
 
@@ -2091,29 +2126,31 @@ export default function ObsidianVault() {
                     <span>Linked Mentions</span>
                   </div>
                   <span className="text-[10px] bg-blue-500/15 text-blue-400 font-mono px-2 py-0.5 rounded-full font-bold">
-                    {backlinks.linkedMentions?.length || 0}
+                    {backlinks?.linkedMentions?.length || 0}
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
-                  {backlinks.linkedMentions?.length === 0 ? (
+                  {!Array.isArray(backlinks?.linkedMentions) || backlinks.linkedMentions.length === 0 ? (
                     <div className="text-xs text-[var(--text-secondary)] italic p-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
                       No notes currently link to this concept. Use [[{activeNote?.title || 'This Note'}]] elsewhere!
                     </div>
                   ) : (
-                    backlinks.linkedMentions.map(mention => (
+                    backlinks.linkedMentions.map((mention, mIdx) => (
                       <div
-                        key={mention._id}
-                        onClick={() => selectNote(mention._id)}
+                        key={mention._id || mention.id || mIdx}
+                        onClick={() => selectNote(mention._id || mention.id)}
                         className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] hover:border-blue-500 transition cursor-pointer text-xs group"
                       >
                         <div className="font-bold text-[var(--text-primary)] group-hover:text-blue-400 flex items-center justify-between">
                           <span>{mention.title}</span>
                           <ArrowUpRight className="w-3 h-3 text-[var(--text-secondary)] group-hover:text-blue-400" />
                         </div>
-                        <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2 italic">
-                          "{mention.snippet}"
-                        </p>
+                        {mention.snippet && (
+                          <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2 italic">
+                            "{mention.snippet}"
+                          </p>
+                        )}
                       </div>
                     ))
                   )}
@@ -2128,33 +2165,35 @@ export default function ObsidianVault() {
                     <span>Unlinked Mentions</span>
                   </div>
                   <span className="text-[10px] bg-amber-500/15 text-amber-400 font-mono px-2 py-0.5 rounded-full font-bold">
-                    {backlinks.unlinkedMentions?.length || 0}
+                    {backlinks?.unlinkedMentions?.length || 0}
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
-                  {backlinks.unlinkedMentions?.length === 0 ? (
+                  {!Array.isArray(backlinks?.unlinkedMentions) || backlinks.unlinkedMentions.length === 0 ? (
                     <div className="text-xs text-[var(--text-secondary)] italic p-2 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
                       No unlinked text mentions detected.
                     </div>
                   ) : (
-                    backlinks.unlinkedMentions.map(mention => (
+                    backlinks.unlinkedMentions.map((mention, uIdx) => (
                       <div
-                        key={mention._id}
+                        key={mention._id || mention.id || uIdx}
                         className="p-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] text-xs space-y-1.5"
                       >
                         <div className="font-bold text-[var(--text-primary)] flex items-center justify-between">
                           <span>{mention.title}</span>
                           <button
-                            onClick={() => handleLinkUnlinkedMention(mention._id, mention.title)}
+                            onClick={() => handleLinkUnlinkedMention(mention._id || mention.id, mention.title)}
                             className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold transition flex items-center gap-1"
                           >
                             <Link2 className="w-2.5 h-2.5" /> Link
                           </button>
                         </div>
-                        <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
-                          "{mention.snippet}"
-                        </p>
+                        {mention.snippet && (
+                          <p className="text-[11px] text-[var(--text-secondary)] line-clamp-2">
+                            "{mention.snippet}"
+                          </p>
+                        )}
                       </div>
                     ))
                   )}
@@ -2206,14 +2245,17 @@ export default function ObsidianVault() {
               onMouseDown={handleCanvasMouseDown}
               onMouseMove={handleCanvasMouseMove}
               onMouseUp={handleCanvasMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               onDoubleClick={(e) => zoomAtPoint(1.35, e.clientX, e.clientY)}
-              className="w-full h-full cursor-grab active:cursor-grabbing"
+              className="w-full h-full cursor-grab active:cursor-grabbing touch-none block"
             />
 
             {/* Top Graph HUD Controls */}
-            <div className="absolute top-4 left-4 z-20 flex flex-wrap items-center gap-2">
-              <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-2xl px-4 py-2 flex items-center gap-3 text-white shadow-xl">
-                <Network className="w-4 h-4 text-purple-400" />
+            <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-auto z-20 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="bg-gray-900/90 backdrop-blur-md border border-gray-800 rounded-xl sm:rounded-2xl px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-3 text-white shadow-xl text-xs">
+                <Network className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
                 <span className="text-xs font-bold">{graphData.nodes?.length || 0} Nodes</span>
                 <span className="text-gray-600">|</span>
                 <span className="text-xs font-bold text-blue-400">{graphData.links?.length || 0} Edges</span>
@@ -2304,7 +2346,7 @@ export default function ObsidianVault() {
                   </p>
                 )}
 
-                {Boolean((hoveredNode || activeNote).tags && (hoveredNode || activeNote).tags.length > 0) && (
+                {Boolean(Array.isArray((hoveredNode || activeNote)?.tags) && (hoveredNode || activeNote).tags.length > 0) && (
                   <div className="flex flex-wrap gap-1 mb-2">
                     {(hoveredNode || activeNote).tags.slice(0, 3).map((tag, idx) => (
                       <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-800 text-gray-300 border border-gray-700">
@@ -2326,10 +2368,10 @@ export default function ObsidianVault() {
             )}
 
             {/* Floating Zoom & Physics Control Pill */}
-            <div className="absolute bottom-6 right-6 z-20 flex items-center gap-1.5 bg-gray-900/95 backdrop-blur-lg border border-gray-800 p-1.5 rounded-2xl shadow-2xl">
+            <div className="absolute bottom-3 right-3 sm:bottom-6 sm:right-6 z-20 flex items-center gap-1 sm:gap-1.5 bg-gray-900/95 backdrop-blur-lg border border-gray-800 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl shadow-2xl scale-90 sm:scale-100 origin-bottom-right">
               <button
                 onClick={() => zoomAtPoint(1.25)}
-                className="p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-xl transition"
+                className="p-1.5 sm:p-2 hover:bg-gray-800 text-gray-300 hover:text-white rounded-lg sm:rounded-xl transition"
                 title="Zoom In (or double-click canvas)"
               >
                 <ZoomIn className="w-4 h-4" />

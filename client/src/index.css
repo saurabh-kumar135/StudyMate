@@ -57,6 +57,15 @@ body {
   width: 100%;
 }
 
+/* Hide scrollbars on mobile docks and toolbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Fix for position: fixed on mobile */
 @media (max-width: 768px) {
   * {

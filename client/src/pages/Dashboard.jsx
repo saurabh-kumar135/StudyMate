@@ -225,7 +225,7 @@ export default function Dashboard() {
           </div>
         </div>
         <Link
-          to="/app/vault"
+          to="/app/graph"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -353,7 +353,7 @@ export default function Dashboard() {
       <div>
         <h2 style={{ fontSize: isMobile ? '20px' : (isTablet ? '24px' : '28px'), fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: isMobile ? '16px' : '20px' }}>Quick Study Tools</h2>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(220px, 1fr))'), gap: isMobile ? '16px' : '20px' }}>
-          <Link to="/app/vault" style={{ ...cardStyle, textDecoration: 'none' }}>
+          <Link to="/app/graph" style={{ ...cardStyle, textDecoration: 'none' }}>
             <div style={{ marginBottom: '20px' }}>
               <div style={{ width: '56px', height: '56px', background: 'linear-gradient(to bottom right, #8b5cf6, #6366f1)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Network style={{ width: '28px', height: '28px', color: 'white' }} />

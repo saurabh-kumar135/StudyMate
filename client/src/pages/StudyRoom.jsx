@@ -866,17 +866,17 @@ export default function StudyRoom() {
   // ==========================================
   if (!inCall) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between py-6 sm:py-12 px-3 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto w-full">
           {/* Header */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold mb-4 tracking-wider uppercase">
+          <div className="text-center mb-6 sm:mb-10">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px] sm:text-xs font-semibold mb-3 tracking-wider uppercase">
               <Users className="w-3.5 h-3.5" /> Peer-to-Peer Study Network
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400">
               Virtual Study Rooms
             </h1>
-            <p className="mt-3 text-base text-slate-400 max-w-xl mx-auto">
+            <p className="mt-2 sm:mt-3 text-xs sm:text-base text-slate-400 max-w-xl mx-auto px-2">
               Real-time WebRTC audio/video calling, synchronized Pomodoro focus timer, and instant screen sharing between students and educators.
             </p>
           </div>
@@ -942,9 +942,9 @@ export default function StudyRoom() {
             </div>
           ) : (
             /* Normal Dual-Card Lobby */
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 items-start">
               {/* Create Room Card */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 backdrop-blur-xl shadow-xl">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="p-2.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
                     <Video className="w-6 h-6" />
@@ -1009,7 +1009,7 @@ export default function StudyRoom() {
               </div>
 
               {/* Join Existing Room Card */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between">
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 backdrop-blur-xl shadow-xl flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-5">
                     <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30">
@@ -1085,49 +1085,52 @@ export default function StudyRoom() {
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between overflow-hidden">
       {/* Top Bar: Room Info & Synchronized Timer */}
-      <header className="h-16 border-b border-slate-800/80 px-4 sm:px-6 flex items-center justify-between bg-slate-900/60 backdrop-blur-md z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-white">{roomTopic || 'Live Study Room'}</span>
-              <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">
+      <header className="min-h-14 sm:h-16 border-b border-slate-800/80 px-2.5 sm:px-6 py-2 flex items-center justify-between bg-slate-900/80 backdrop-blur-md z-20 gap-2 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 animate-pulse shrink-0"></div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-bold text-xs sm:text-sm text-white truncate max-w-[100px] xs:max-w-[150px] sm:max-w-xs">{roomTopic || 'Study Room'}</span>
+              <span className="text-[10px] sm:text-xs bg-slate-800 text-slate-400 px-1.5 sm:px-2 py-0.5 rounded-full font-mono shrink-0">
                 {roomId}
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              {remoteConnected ? 'Connected with ' + remoteUserName : 'Waiting for study partner...'}
+            <p className="text-[10px] sm:text-xs text-slate-400 truncate max-w-[120px] sm:max-w-none">
+              {remoteConnected ? 'Connected with ' + remoteUserName : 'Waiting for partner...'}
             </p>
           </div>
         </div>
 
         {/* Synchronized Pomodoro Study Timer */}
-        <div className="flex items-center gap-3 bg-slate-950/80 border border-slate-800 px-3.5 py-1.5 rounded-full">
-          <Timer className="w-4 h-4 text-blue-400" />
-          <span className="font-mono font-bold text-sm tracking-wider text-blue-300">
+        <div className="flex items-center gap-1 sm:gap-2.5 bg-slate-950/80 border border-slate-800 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full shrink-0">
+          <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-400 shrink-0" />
+          <span className="font-mono font-bold text-xs sm:text-sm tracking-wider text-blue-300">
             {formatTimer(timerState.timeLeft)}
           </span>
           <button
             onClick={() => handleTimerAction(timerState.isRunning ? 'pause' : 'start')}
             className="p-1 hover:bg-slate-800 rounded-full text-slate-300 transition-colors"
+            title={timerState.isRunning ? "Pause Timer" : "Start Timer"}
           >
-            {timerState.isRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+            {timerState.isRunning ? <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> : <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
           </button>
           <button
             onClick={() => handleTimerAction('reset')}
-            className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-200 transition-colors hidden sm:inline-flex"
+            title="Reset Timer"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
           </button>
         </div>
 
         {/* Share Button */}
         <button
           onClick={copyRoomLink}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-all"
+          className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-all shrink-0"
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? 'Copied' : 'Share Link'}
+          <span className="hidden sm:inline">{copied ? 'Copied' : 'Share Link'}</span>
+          <span className="sm:hidden text-[11px]">{copied ? 'Copied' : 'Share'}</span>
         </button>
       </header>
 
@@ -1232,22 +1235,22 @@ export default function StudyRoom() {
                 />
 
                 {/* Floating Corner PiP Video Tiles */}
-                <div className="absolute bottom-4 right-4 flex flex-col sm:flex-row gap-3 pointer-events-auto z-20">
+                <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 flex flex-col sm:flex-row gap-2 sm:gap-3 pointer-events-auto z-20">
                   {/* Remote Peer Mini PiP */}
-                  <div className="relative w-36 h-24 sm:w-44 sm:h-28 bg-slate-900 rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
+                  <div className="relative w-24 h-16 sm:w-44 sm:h-28 bg-slate-900 rounded-lg sm:rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
                     <video
                       ref={remoteVideoRef}
                       autoPlay
                       playsInline
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-2 py-0.5 rounded text-[10px] text-slate-300 font-medium truncate max-w-[90%]">
-                      {remoteConnected ? remoteUserName : 'Waiting for peer...'}
+                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] text-slate-300 font-medium truncate max-w-[90%]">
+                      {remoteConnected ? remoteUserName : 'Waiting...'}
                     </div>
                   </div>
 
                   {/* Local User Mini PiP */}
-                  <div className="relative w-36 h-24 sm:w-44 sm:h-28 bg-slate-900 rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
+                  <div className="relative w-24 h-16 sm:w-44 sm:h-28 bg-slate-900 rounded-lg sm:rounded-xl overflow-hidden border border-slate-700/80 shadow-2xl">
                     <video
                       ref={localVideoRef}
                       autoPlay
@@ -1255,7 +1258,7 @@ export default function StudyRoom() {
                       muted
                       className="w-full h-full object-cover transform -scale-x-100"
                     />
-                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-2 py-0.5 rounded text-[10px] text-slate-300 font-medium">
+                    <div className="absolute bottom-1 left-1.5 bg-slate-950/80 px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] text-slate-300 font-medium">
                       You
                     </div>
                   </div>
@@ -1263,9 +1266,9 @@ export default function StudyRoom() {
               </div>
             </div>
           ) : (
-            <div className="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
+            <div className="w-full h-full max-w-6xl flex flex-col md:grid md:grid-cols-2 gap-2.5 sm:gap-4 items-center justify-center min-h-0 flex-1">
               {/* Remote Peer Stream */}
-              <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+              <div className="relative w-full flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px] bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
                 <video
                   ref={remoteVideoRef}
                   autoPlay
@@ -1273,32 +1276,32 @@ export default function StudyRoom() {
                   className="w-full h-full object-cover"
                 />
                 {!remoteConnected && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-center p-6">
-                    <div className="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-3">
-                      <Users className="w-8 h-8 text-slate-400 animate-pulse" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-center p-4 sm:p-6">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-2 sm:mb-3">
+                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400 animate-pulse" />
                     </div>
-                    <h3 className="text-base font-semibold text-slate-200">Waiting for peer to connect</h3>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-200">Waiting for peer to connect</h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400 mt-1 max-w-xs">
                       Share your room code (<span className="text-blue-400 font-mono">{roomId}</span>) with your classmate or teacher to begin.
                     </p>
                     <button
                       onClick={copyRoomLink}
-                      className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20"
+                      className="mt-3 sm:mt-4 px-3.5 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20"
                     >
                       <Copy className="w-3.5 h-3.5" /> Copy Invite Code
                     </button>
                   </div>
                 )}
                 {remoteConnected && (
-                  <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
+                  <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-slate-950/70 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    {remoteUserName}
+                    <span className="truncate max-w-[120px] sm:max-w-none">{remoteUserName}</span>
                   </div>
                 )}
               </div>
 
               {/* Local User Stream */}
-              <div className="relative w-full h-full min-h-[300px] max-h-[560px] bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+              <div className="relative w-full flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px] bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -1308,12 +1311,12 @@ export default function StudyRoom() {
                 />
                 {isVideoOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
-                    <VideoOff className="w-12 h-12 text-slate-600 mb-2" />
+                    <VideoOff className="w-8 h-8 sm:w-12 sm:h-12 text-slate-600 mb-2" />
                     <span className="text-xs font-medium">Camera Off</span>
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 bg-slate-950/70 backdrop-blur-md px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
-                  <span className="text-blue-400 font-bold">{userName}</span> (You)
+                <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-slate-950/70 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
+                  <span className="text-blue-400 font-bold truncate max-w-[100px] sm:max-w-none">{userName}</span> (You)
                   {isAudioMuted && <MicOff className="w-3.5 h-3.5 text-red-400 ml-1" />}
                 </div>
               </div>
@@ -1354,9 +1357,9 @@ export default function StudyRoom() {
 
         {/* Right Collaboration Drawer (Chat + Live Transcript) */}
         {chatOpen && (
-          <aside className="w-80 md:w-96 border-l border-slate-800 bg-slate-900/95 backdrop-blur-xl flex flex-col z-20 shadow-2xl">
+          <aside className="fixed inset-x-0 bottom-16 sm:bottom-20 top-14 sm:top-16 z-40 md:static md:inset-auto md:w-80 lg:w-96 border-l border-slate-800 bg-slate-900/98 backdrop-blur-2xl flex flex-col shadow-2xl">
             {/* Drawer Header with Dual Tabs */}
-            <div className="h-14 px-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="h-14 px-4 border-b border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -1599,51 +1602,51 @@ export default function StudyRoom() {
       )}
 
       {/* Bottom Floating Control Dock */}
-      <footer className="h-20 border-t border-slate-800/80 px-4 flex items-center justify-center bg-slate-900/80 backdrop-blur-xl z-20">
-        <div className="flex items-center gap-3">
+      <footer className="min-h-16 sm:h-20 border-t border-slate-800/80 px-2 sm:px-4 py-1.5 sm:py-0 flex items-center justify-center bg-slate-900/90 backdrop-blur-xl z-30 w-full shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 overflow-x-auto max-w-full py-1 px-1 no-scrollbar justify-start sm:justify-center">
           {/* Mute Mic */}
           <button
             onClick={toggleAudio}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (isAudioMuted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (isAudioMuted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title={isAudioMuted ? 'Unmute Microphone' : 'Mute Microphone'}
           >
-            {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {isAudioMuted ? <MicOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Mic className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
 
           {/* Camera On/Off */}
           <button
             onClick={toggleVideo}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (isVideoOff ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (isVideoOff ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title={isVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
           >
-            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {isVideoOff ? <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Video className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
 
           {/* Screen Share */}
           <button
             onClick={toggleScreenShare}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (isScreenSharing ? 'bg-blue-600 text-white border border-blue-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (isScreenSharing ? 'bg-blue-600 text-white border border-blue-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
           >
-            {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
+            {isScreenSharing ? <MonitorOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Monitor className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
 
           {/* Toggle Collaborative Whiteboard */}
           <button
             onClick={() => setWhiteboardOpen(!whiteboardOpen)}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (whiteboardOpen ? 'bg-sky-600 text-white border border-sky-400 ring-2 ring-sky-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (whiteboardOpen ? 'bg-sky-600 text-white border border-sky-400 ring-2 ring-sky-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title={whiteboardOpen ? 'Exit Whiteboard' : 'Open Collaborative Real-Time Whiteboard'}
           >
-            <PenTool className="w-5 h-5" />
+            <PenTool className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Toggle Closed Captions / Speech Recognition */}
           <button
             onClick={() => setCaptionsEnabled(!captionsEnabled)}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (captionsEnabled ? 'bg-purple-600 text-white border border-purple-400 ring-2 ring-purple-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (captionsEnabled ? 'bg-purple-600 text-white border border-purple-400 ring-2 ring-purple-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title={captionsEnabled ? 'Turn Off Closed Captions' : 'Turn On Live Speech Captions (CC)'}
           >
-            <Subtitles className="w-5 h-5" />
+            <Subtitles className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Toggle In-Call Chat */}
@@ -1657,12 +1660,12 @@ export default function StudyRoom() {
                 setUnreadChatCount(0);
               }
             }}
-            className={'relative p-3.5 rounded-2xl transition-all shadow-lg ' + (chatOpen && sidebarTab === 'chat' ? 'bg-blue-600 text-white border border-blue-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'relative p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (chatOpen && sidebarTab === 'chat' ? 'bg-blue-600 text-white border border-blue-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title="Toggle In-Call Chat"
           >
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
             {unreadChatCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow">
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center border border-slate-900 shadow">
                 {unreadChatCount}
               </span>
             )}
@@ -1678,18 +1681,20 @@ export default function StudyRoom() {
                 setSidebarTab('transcript');
               }
             }}
-            className={'p-3.5 rounded-2xl transition-all shadow-lg ' + (chatOpen && sidebarTab === 'transcript' ? 'bg-purple-600 text-white border border-purple-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
+            className={'p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl transition-all shadow-lg shrink-0 ' + (chatOpen && sidebarTab === 'transcript' ? 'bg-purple-600 text-white border border-purple-400' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700')}
             title="Open Live Conversation Transcript & AI Notes"
           >
-            <FileText className="w-5 h-5" />
+            <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {/* Leave Call */}
           <button
             onClick={handleLeaveCall}
-            className="px-5 py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-all shadow-lg shadow-red-500/20 flex items-center gap-2"
+            className="px-3.5 sm:px-5 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition-all shadow-lg shadow-red-500/20 flex items-center gap-1.5 sm:gap-2 shrink-0"
           >
-            <PhoneOff className="w-5 h-5" /> End Call
+            <PhoneOff className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="hidden sm:inline">End Call</span>
+            <span className="sm:hidden text-xs">End</span>
           </button>
         </div>
       </footer>
