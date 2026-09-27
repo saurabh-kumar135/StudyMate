@@ -8,7 +8,7 @@ import {
   PhoneOff, MessageSquare, Timer, Copy, Check, Users,
   Play, Pause, RotateCcw, BookOpen, ShieldCheck,
   Send, X, FileText, Download, Subtitles, Loader2, Award,
-  PenTool, Eraser, Trash2
+  PenTool, Eraser, Trash2, ChevronLeft, ChevronRight, Plus, Layers
 } from 'lucide-react';
 
 export default function StudyRoom() {
@@ -51,8 +51,10 @@ export default function StudyRoom() {
   const [aiSummaryData, setAiSummaryData] = useState(null);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
-  // Collaborative Whiteboard
+  // Collaborative Multi-Page Whiteboard
   const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  const [whiteboardPages, setWhiteboardPages] = useState([[]]);
+  const [activePageIndex, setActivePageIndex] = useState(0);
   const [brushColor, setBrushColor] = useState('#38bdf8');
   const [brushSize, setBrushSize] = useState(4);
   const [isEraser, setIsEraser] = useState(false);
@@ -65,6 +67,8 @@ export default function StudyRoom() {
   const isDrawingRef = useRef(false);
   const lastCoordRef = useRef({ normX: 0, normY: 0 });
   const strokesRef = useRef([]);
+  const pagesRef = useRef([[]]);
+  const activePageRef = useRef(0);
   const socketRef = useRef(null);
   const recognitionRef = useRef(null);
   const transcriptBottomRef = useRef(null);
@@ -333,11 +337,21 @@ export default function StudyRoom() {
       });
     });
 
-    socket.on('room-joined', async ({ participants, timer, whiteboardStrokes }) => {
+    socket.on('room-joined', async ({ participants, timer, whiteboardStrokes, whiteboardPages: serverPages, activePageIndex: serverActiveIdx }) => {
       if (timer) setTimerState(timer);
-      if (whiteboardStrokes && whiteboardStrokes.length > 0) {
-        strokesRef.current = [...whiteboardStrokes];
-        redrawCanvas();
+      if (Array.isArray(serverPages) && serverPages.length > 0) {
+        pagesRef.current = serverPages;
+        setWhiteboardPages([...serverPages]);
+        const initialPage = typeof serverActiveIdx === 'number' ? serverActiveIdx : 0;
+        setActivePageIndex(initialPage);
+        activePageRef.current = initialPage;
+        redrawCanvas(initialPage);
+      } else if (whiteboardStrokes && whiteboardStrokes.length > 0) {
+        pagesRef.current = [[...whiteboardStrokes]];
+        setWhiteboardPages([...pagesRef.current]);
+        setActivePageIndex(0);
+        activePageRef.current = 0;
+        redrawCanvas(0);
       }
       if (participants && participants.length > 0) {
         const peer = participants[0];
@@ -423,13 +437,63 @@ export default function StudyRoom() {
     });
 
     socket.on('whiteboard-draw', (stroke) => {
-      strokesRef.current.push(stroke);
-      drawSingleStrokeOnCanvas(stroke);
+      const pageIdx = typeof stroke.pageIndex === 'number' ? stroke.pageIndex : 0;
+      while (pagesRef.current.length <= pageIdx) {
+        pagesRef.current.push([]);
+      }
+      pagesRef.current[pageIdx].push(stroke);
+      setWhiteboardPages([...pagesRef.current]);
+      if (pageIdx === activePageRef.current) {
+        drawSingleStrokeOnCanvas(stroke);
+      }
     });
 
-    socket.on('whiteboard-clear', () => {
-      strokesRef.current = [];
-      clearCanvasOnly();
+    socket.on('whiteboard-clear', (data) => {
+      const targetPage = data && typeof data.pageIndex === 'number' ? data.pageIndex : activePageRef.current;
+      if (pagesRef.current[targetPage]) {
+        pagesRef.current[targetPage] = [];
+        setWhiteboardPages([...pagesRef.current]);
+      }
+      if (targetPage === activePageRef.current) {
+        clearCanvasOnly();
+      }
+    });
+
+    socket.on('whiteboard-pages-update', ({ totalPages, activePageIndex: newActiveIdx }) => {
+      while (pagesRef.current.length < totalPages) {
+        pagesRef.current.push([]);
+      }
+      setWhiteboardPages([...pagesRef.current]);
+      if (typeof newActiveIdx === 'number' && newActiveIdx >= 0 && newActiveIdx < totalPages) {
+        setActivePageIndex(newActiveIdx);
+        activePageRef.current = newActiveIdx;
+        redrawCanvas(newActiveIdx);
+      }
+    });
+
+    socket.on('whiteboard-page-change', ({ pageIndex: newActiveIdx }) => {
+      if (typeof newActiveIdx === 'number' && newActiveIdx >= 0) {
+        while (pagesRef.current.length <= newActiveIdx) {
+          pagesRef.current.push([]);
+        }
+        setWhiteboardPages([...pagesRef.current]);
+        setActivePageIndex(newActiveIdx);
+        activePageRef.current = newActiveIdx;
+        redrawCanvas(newActiveIdx);
+      }
+    });
+
+    socket.on('whiteboard-pages-deleted', ({ totalPages, activePageIndex: newActiveIdx, whiteboardPages: serverPages }) => {
+      if (Array.isArray(serverPages) && serverPages.length > 0) {
+        pagesRef.current = serverPages;
+      } else if (pagesRef.current.length > 1) {
+        pagesRef.current.splice(newActiveIdx, 1);
+      }
+      setWhiteboardPages([...pagesRef.current]);
+      const validIdx = Math.max(0, Math.min(newActiveIdx, pagesRef.current.length - 1));
+      setActivePageIndex(validIdx);
+      activePageRef.current = validIdx;
+      redrawCanvas(validIdx);
     });
 
     socket.on('user-left', ({ userName: leftUser }) => {
@@ -663,12 +727,13 @@ export default function StudyRoom() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
-  const redrawCanvas = () => {
+  const redrawCanvas = (targetPageIndex = activePageRef.current) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     clearCanvasOnly();
-    if (strokesRef.current && strokesRef.current.length > 0) {
-      strokesRef.current.forEach((stroke) => {
+    const pageStrokes = pagesRef.current[targetPageIndex] || [];
+    if (pageStrokes && pageStrokes.length > 0) {
+      pageStrokes.forEach((stroke) => {
         drawSingleStrokeOnCanvas(stroke);
       });
     }
@@ -682,10 +747,58 @@ export default function StudyRoom() {
       if (rect.width > 0 && rect.height > 0) {
         canvas.width = rect.width;
         canvas.height = rect.height;
-        redrawCanvas();
+        redrawCanvas(activePageRef.current);
       }
     }
   }, [whiteboardOpen]);
+
+  // Page Navigation Handlers
+  const handleChangePage = (newIdx) => {
+    if (newIdx < 0 || newIdx >= pagesRef.current.length) return;
+    setActivePageIndex(newIdx);
+    activePageRef.current = newIdx;
+    redrawCanvas(newIdx);
+
+    if (socketRef.current && inCall) {
+      socketRef.current.emit('whiteboard-page-change', {
+        roomId,
+        pageIndex: newIdx
+      });
+    }
+  };
+
+  const handleAddPage = () => {
+    const nextPages = [...pagesRef.current, []];
+    pagesRef.current = nextPages;
+    const nextIdx = nextPages.length - 1;
+    setWhiteboardPages(nextPages);
+    setActivePageIndex(nextIdx);
+    activePageRef.current = nextIdx;
+    redrawCanvas(nextIdx);
+
+    if (socketRef.current && inCall) {
+      socketRef.current.emit('whiteboard-page-add', { roomId });
+    }
+  };
+
+  const handleDeletePage = () => {
+    if (pagesRef.current.length <= 1) return;
+    const curIdx = activePageRef.current;
+    const nextPages = pagesRef.current.filter((_, idx) => idx !== curIdx);
+    pagesRef.current = nextPages;
+    const nextIdx = Math.max(0, curIdx - 1);
+    setWhiteboardPages(nextPages);
+    setActivePageIndex(nextIdx);
+    activePageRef.current = nextIdx;
+    redrawCanvas(nextIdx);
+
+    if (socketRef.current && inCall) {
+      socketRef.current.emit('whiteboard-page-delete', {
+        roomId,
+        pageIndex: curIdx
+      });
+    }
+  };
 
   const getCoordinatesFromEvent = (e) => {
     const canvas = canvasRef.current;
@@ -719,6 +832,7 @@ export default function StudyRoom() {
     const coords = getCoordinatesFromEvent(e);
     if (!coords) return;
 
+    const pageIdx = activePageRef.current;
     const stroke = {
       prevX: lastCoordRef.current.normX,
       prevY: lastCoordRef.current.normY,
@@ -726,10 +840,14 @@ export default function StudyRoom() {
       currY: coords.normY,
       color: brushColor,
       size: brushSize,
-      isEraser: isEraser
+      isEraser: isEraser,
+      pageIndex: pageIdx
     };
 
-    strokesRef.current.push(stroke);
+    if (!pagesRef.current[pageIdx]) {
+      pagesRef.current[pageIdx] = [];
+    }
+    pagesRef.current[pageIdx].push(stroke);
     drawSingleStrokeOnCanvas(stroke);
     lastCoordRef.current = coords;
 
@@ -746,10 +864,17 @@ export default function StudyRoom() {
   };
 
   const handleClearWhiteboard = () => {
-    strokesRef.current = [];
+    const curIdx = activePageRef.current;
+    if (pagesRef.current[curIdx]) {
+      pagesRef.current[curIdx] = [];
+    }
+    setWhiteboardPages([...pagesRef.current]);
     clearCanvasOnly();
     if (socketRef.current && inCall) {
-      socketRef.current.emit('whiteboard-clear', { roomId });
+      socketRef.current.emit('whiteboard-clear', {
+        roomId,
+        pageIndex: curIdx
+      });
     }
   };
 
@@ -759,7 +884,7 @@ export default function StudyRoom() {
     const imageURL = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.href = imageURL;
-    link.download = 'StudyMate-Whiteboard-' + roomId + '-' + Date.now() + '.png';
+    link.download = 'StudyMate-Whiteboard-' + roomId + '-Page-' + (activePageIndex + 1) + '-' + Date.now() + '.png';
     link.click();
   };
 
@@ -1141,13 +1266,62 @@ export default function StudyRoom() {
           {whiteboardOpen ? (
             <div className="relative w-full h-full max-w-6xl bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col">
               {/* Whiteboard Top Toolbar */}
-              <div className="min-h-14 px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-wrap gap-3 z-10">
+              <div className="min-h-14 px-3 sm:px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2.5 z-10">
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold">
                     <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
                     Collaborative Whiteboard
                   </div>
-                  <span className="text-[11px] text-slate-400 hidden sm:inline">Live Canvas Sync</span>
+                  <span className="text-[11px] text-slate-400 hidden lg:inline">Live Canvas Sync</span>
+                </div>
+
+                {/* Multi-Page Navigation Controls */}
+                <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-xl border border-slate-800 shadow-sm">
+                  <button
+                    onClick={() => handleChangePage(activePageIndex - 1)}
+                    disabled={activePageIndex === 0}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold text-slate-200 select-none">
+                    <Layers className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <span>
+                      Page <span className="text-sky-400 font-bold">{activePageIndex + 1}</span> / {whiteboardPages.length}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => handleChangePage(activePageIndex + 1)}
+                    disabled={activePageIndex === whiteboardPages.length - 1}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <div className="w-[1px] h-4 bg-slate-800 mx-0.5"></div>
+
+                  <button
+                    onClick={handleAddPage}
+                    className="px-2 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-1 transition shadow-sm"
+                    title="Add New Whiteboard Page"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">New Page</span>
+                  </button>
+
+                  {whiteboardPages.length > 1 && (
+                    <button
+                      onClick={handleDeletePage}
+                      className="p-1 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all ml-0.5"
+                      title="Delete Current Page"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Drawing Controls */}
@@ -1195,7 +1369,7 @@ export default function StudyRoom() {
                   <button
                     onClick={handleClearWhiteboard}
                     className="p-1.5 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
-                    title="Clear entire whiteboard"
+                    title="Clear current page strokes"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -1204,7 +1378,7 @@ export default function StudyRoom() {
                   <button
                     onClick={handleDownloadWhiteboard}
                     className="p-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
-                    title="Download whiteboard diagram as PNG"
+                    title="Download current page diagram as PNG"
                   >
                     <Download className="w-4 h-4" />
                   </button>
@@ -1233,6 +1407,12 @@ export default function StudyRoom() {
                   onTouchEnd={stopDrawing}
                   className="w-full h-full block touch-none"
                 />
+
+                {/* Subtle Bottom-Left Canvas Page Indicator */}
+                <div className="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-xs font-mono text-slate-400 border border-slate-800 pointer-events-none select-none flex items-center gap-1.5 shadow">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                  Page {activePageIndex + 1} of {whiteboardPages.length}
+                </div>
 
                 {/* Floating Corner PiP Video Tiles */}
                 <div className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 flex flex-col sm:flex-row gap-2 sm:gap-3 pointer-events-auto z-20">

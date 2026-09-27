@@ -22,6 +22,8 @@ function initStudyRoomSignaling(io) {
         rooms.set(roomId, {
           participants: new Map(),
           timer: { timeLeft: 25 * 60, isRunning: false, mode: 'study' },
+          whiteboardPages: [[]],
+          activePageIndex: 0,
           whiteboardStrokes: []
         });
       }
@@ -45,7 +47,9 @@ function initStudyRoomSignaling(io) {
         roomId,
         participants: existingParticipants,
         timer: roomData.timer,
-        whiteboardStrokes: roomData.whiteboardStrokes || []
+        whiteboardPages: roomData.whiteboardPages || [[]],
+        activePageIndex: roomData.activePageIndex || 0,
+        whiteboardStrokes: (roomData.whiteboardPages && roomData.whiteboardPages[0]) || roomData.whiteboardStrokes || []
       });
 
       // Notify others in the room
@@ -154,22 +158,70 @@ function initStudyRoomSignaling(io) {
       if (!roomId || !stroke) return;
       const roomData = rooms.get(roomId);
       if (roomData) {
-        if (!roomData.whiteboardStrokes) roomData.whiteboardStrokes = [];
-        roomData.whiteboardStrokes.push(stroke);
-        if (roomData.whiteboardStrokes.length > 5000) {
-          roomData.whiteboardStrokes.shift();
+        if (!roomData.whiteboardPages) roomData.whiteboardPages = [[]];
+        const pageIdx = typeof stroke.pageIndex === 'number' ? stroke.pageIndex : 0;
+        while (roomData.whiteboardPages.length <= pageIdx) {
+          roomData.whiteboardPages.push([]);
+        }
+        roomData.whiteboardPages[pageIdx].push(stroke);
+        if (roomData.whiteboardPages[pageIdx].length > 5000) {
+          roomData.whiteboardPages[pageIdx].shift();
         }
       }
       socket.to(roomId).emit('whiteboard-draw', stroke);
     });
 
-    socket.on('whiteboard-clear', ({ roomId }) => {
+    socket.on('whiteboard-clear', ({ roomId, pageIndex }) => {
+      if (!roomId) return;
+      const roomData = rooms.get(roomId);
+      const targetPage = typeof pageIndex === 'number' ? pageIndex : 0;
+      if (roomData) {
+        if (roomData.whiteboardPages && roomData.whiteboardPages[targetPage]) {
+          roomData.whiteboardPages[targetPage] = [];
+        }
+        if (targetPage === 0) {
+          roomData.whiteboardStrokes = [];
+        }
+      }
+      io.in(roomId).emit('whiteboard-clear', { pageIndex: targetPage });
+    });
+
+    socket.on('whiteboard-page-add', ({ roomId }) => {
       if (!roomId) return;
       const roomData = rooms.get(roomId);
       if (roomData) {
-        roomData.whiteboardStrokes = [];
+        if (!roomData.whiteboardPages) roomData.whiteboardPages = [[]];
+        roomData.whiteboardPages.push([]);
+        roomData.activePageIndex = roomData.whiteboardPages.length - 1;
+        io.in(roomId).emit('whiteboard-pages-update', {
+          totalPages: roomData.whiteboardPages.length,
+          activePageIndex: roomData.activePageIndex
+        });
       }
-      io.in(roomId).emit('whiteboard-clear');
+    });
+
+    socket.on('whiteboard-page-change', ({ roomId, pageIndex }) => {
+      if (!roomId || typeof pageIndex !== 'number') return;
+      const roomData = rooms.get(roomId);
+      if (roomData) {
+        roomData.activePageIndex = pageIndex;
+        socket.to(roomId).emit('whiteboard-page-change', { pageIndex });
+      }
+    });
+
+    socket.on('whiteboard-page-delete', ({ roomId, pageIndex }) => {
+      if (!roomId) return;
+      const roomData = rooms.get(roomId);
+      if (roomData && roomData.whiteboardPages && roomData.whiteboardPages.length > 1) {
+        const targetPage = typeof pageIndex === 'number' ? pageIndex : 0;
+        roomData.whiteboardPages.splice(targetPage, 1);
+        roomData.activePageIndex = Math.max(0, Math.min(roomData.activePageIndex, roomData.whiteboardPages.length - 1));
+        io.in(roomId).emit('whiteboard-pages-deleted', {
+          totalPages: roomData.whiteboardPages.length,
+          activePageIndex: roomData.activePageIndex,
+          whiteboardPages: roomData.whiteboardPages
+        });
+      }
     });
 
     // Disconnect cleanup
