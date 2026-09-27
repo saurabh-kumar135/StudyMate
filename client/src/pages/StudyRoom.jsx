@@ -93,7 +93,7 @@ export default function StudyRoom() {
       remoteVideoRef.current.srcObject = remoteStreamRef.current;
       remoteVideoRef.current.play().catch((e) => console.log('remote play error:', e));
     }
-  }, [inCall, whiteboardOpen]);
+  }, [inCall, whiteboardOpen, remoteConnected]);
 
   // Live Speech Recognition Engine (Web Speech API)
   useEffect(() => {
@@ -1266,42 +1266,35 @@ export default function StudyRoom() {
               </div>
             </div>
           ) : (
-            <div className="w-full h-full max-w-6xl flex flex-col md:grid md:grid-cols-2 gap-2.5 sm:gap-4 items-center justify-center min-h-0 flex-1">
+            <div className={`w-full h-full min-h-0 flex-1 flex items-center justify-center ${
+              remoteConnected
+                ? 'max-w-6xl flex-col md:grid md:grid-cols-2 gap-2.5 sm:gap-4'
+                : 'max-w-4xl mx-auto px-2 sm:px-4 py-2'
+            }`}>
               {/* Remote Peer Stream */}
-              <div className="relative w-full flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px] bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+              <div className={`${
+                remoteConnected
+                  ? 'relative w-full flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px] bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl'
+                  : 'hidden'
+              }`}>
                 <video
                   ref={remoteVideoRef}
                   autoPlay
                   playsInline
                   className="w-full h-full object-cover"
                 />
-                {!remoteConnected && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 text-center p-4 sm:p-6">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center mb-2 sm:mb-3">
-                      <Users className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400 animate-pulse" />
-                    </div>
-                    <h3 className="text-sm sm:text-base font-semibold text-slate-200">Waiting for peer to connect</h3>
-                    <p className="text-[11px] sm:text-xs text-slate-400 mt-1 max-w-xs">
-                      Share your room code (<span className="text-blue-400 font-mono">{roomId}</span>) with your classmate or teacher to begin.
-                    </p>
-                    <button
-                      onClick={copyRoomLink}
-                      className="mt-3 sm:mt-4 px-3.5 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-500/20"
-                    >
-                      <Copy className="w-3.5 h-3.5" /> Copy Invite Code
-                    </button>
-                  </div>
-                )}
-                {remoteConnected && (
-                  <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-slate-950/70 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                    <span className="truncate max-w-[120px] sm:max-w-none">{remoteUserName}</span>
-                  </div>
-                )}
+                <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-slate-950/70 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                  <span className="truncate max-w-[120px] sm:max-w-none">{remoteUserName}</span>
+                </div>
               </div>
 
               {/* Local User Stream */}
-              <div className="relative w-full flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px] bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+              <div className={`relative w-full overflow-hidden bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-800 flex items-center justify-center shadow-2xl transition-all duration-300 ${
+                remoteConnected
+                  ? 'flex-1 md:flex-initial md:h-full min-h-0 max-h-none md:max-h-[560px]'
+                  : 'h-full max-h-[580px] aspect-video'
+              }`}>
                 <video
                   ref={localVideoRef}
                   autoPlay
@@ -1312,9 +1305,35 @@ export default function StudyRoom() {
                 {isVideoOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-slate-400">
                     <VideoOff className="w-8 h-8 sm:w-12 sm:h-12 text-slate-600 mb-2" />
-                    <span className="text-xs font-medium">Camera Off</span>
+                    <span className="text-xs sm:text-sm font-medium">Camera Off</span>
                   </div>
                 )}
+
+                {/* Floating "Waiting for peer" Card (Google Meet style) */}
+                {!remoteConnected && (
+                  <div className="absolute top-3 left-3 right-3 sm:top-4 sm:right-4 sm:left-auto max-w-xs sm:max-w-sm bg-slate-950/85 backdrop-blur-md border border-slate-800/90 rounded-xl p-3 sm:p-3.5 shadow-2xl flex flex-col gap-2 z-10 animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0"></div>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-200">Waiting for peer to connect</span>
+                    </div>
+                    <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
+                      Share your room code with your classmate or friend to begin:
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="bg-slate-900/90 px-2.5 py-1 rounded-lg text-xs font-mono text-blue-400 font-bold border border-slate-800 select-all truncate">
+                        {roomId}
+                      </span>
+                      <button
+                        onClick={copyRoomLink}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm shrink-0"
+                      >
+                        <Copy className="w-3 h-3" /> Copy Code
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Local User Badge */}
                 <div className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-slate-950/70 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-lg text-xs font-medium text-slate-300 border border-slate-800 flex items-center gap-2">
                   <span className="text-blue-400 font-bold truncate max-w-[100px] sm:max-w-none">{userName}</span> (You)
                   {isAudioMuted && <MicOff className="w-3.5 h-3.5 text-red-400 ml-1" />}
