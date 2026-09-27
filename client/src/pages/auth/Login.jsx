@@ -10,7 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -86,21 +86,48 @@ const Login = () => {
             </div>
           </div>
 
-          {}
-          <div className="mb-4">
+          {/* Google Login */}
+          <div className="mb-4 flex justify-center">
             <GoogleLogin
-              onSuccess={(credentialResponse) => {
-                
-                window.location.href = 'http://localhost:5000/api/auth/google';
+              onSuccess={async (credentialResponse) => {
+                try {
+                  if (!credentialResponse || !credentialResponse.credential) {
+                    setErrors(['Failed to get credentials from Google.']);
+                    return;
+                  }
+                  const base64Url = credentialResponse.credential.split('.')[1];
+                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  const jsonPayload = decodeURIComponent(
+                    atob(base64)
+                      .split('')
+                      .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                      .join('')
+                  );
+                  const decoded = JSON.parse(jsonPayload);
+
+                  const result = await googleLogin({
+                    email: decoded.email,
+                    name: decoded.name || decoded.given_name || 'Google User',
+                    picture: decoded.picture,
+                    sub: decoded.sub,
+                  });
+
+                  if (result.success) {
+                    navigate('/app/dashboard');
+                  } else {
+                    setErrors(result.errors || ['Google Sign-In failed']);
+                  }
+                } catch (err) {
+                  console.error('Google login error:', err);
+                  setErrors(['Google Sign-In failed. Please try again.']);
+                }
               }}
               onError={() => {
                 setErrors(['Google Sign-In failed. Please try again.']);
               }}
-              useOneTap
+              useOneTap={false}
               theme="outline"
               size="large"
-              text="continue_with"
-              shape="rectangular"
               width="100%"
             />
           </div>

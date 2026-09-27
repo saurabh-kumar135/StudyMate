@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import { checkSession, login as loginApi, logout as logoutApi } from '../services/api';
+import { checkSession, login as loginApi, googleLogin as googleLoginApi, logout as logoutApi } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-
     checkSessionStatus();
   }, []);
 
@@ -49,6 +48,27 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleLogin = async (googlePayload) => {
+    try {
+      const response = await googleLoginApi(googlePayload);
+      if (response.data.success) {
+        setUser(response.data.user);
+        setIsLoggedIn(true);
+        return { success: true };
+      }
+      return {
+        success: false,
+        errors: response.data.errors || [response.data.message || 'Google sign-in failed']
+      };
+    } catch (error) {
+      console.error('Error logging in with Google:', error);
+      return {
+        success: false,
+        errors: error.response?.data?.errors || [error.response?.data?.message || 'Error during Google sign-in']
+      };
+    }
+  };
+
   const logout = async () => {
     try {
       await logoutApi();
@@ -62,7 +82,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, loading, login, logout, checkSessionStatus }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, loading, login, googleLogin, logout, checkSessionStatus }}>
       {children}
     </AuthContext.Provider>
   );

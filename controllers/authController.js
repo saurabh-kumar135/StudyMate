@@ -208,3 +208,85 @@ exports.postLogout = (req, res, next) => {
     });
   })
 }
+
+exports.postGoogleLogin = async (req, res, next) => {
+  const { email, name, picture, sub } = req.body;
+  if (!email) {
+    return res.status(422).json({
+      success: false,
+      error: "Google login failed: missing email",
+      message: "Google login failed: missing email from Google account",
+      errors: ["Missing email from Google account"],
+    });
+  }
+
+  try {
+    const normalizedEmail = normalizeUserEmail(email);
+    const rawLower = email.trim().toLowerCase();
+
+    // Check if user already exists by googleId, raw email, or normalized email
+    let user = await User.findOne({
+      $or: [
+        ...(sub ? [{ googleId: sub }] : []),
+        { email: rawLower },
+        { email: normalizedEmail }
+      ]
+    });
+
+    if (!user) {
+      const parts = (name || 'Google User').trim().split(/\s+/);
+      const firstName = parts[0] || 'User';
+      const lastName = parts.slice(1).join(' ') || '';
+
+      user = new User({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        googleId: sub || undefined,
+        authProvider: 'google',
+        authMethod: 'google',
+        profilePicture: picture || '',
+        userType: 'guest'
+      });
+      await user.save();
+    } else {
+      let modified = false;
+      if (sub && !user.googleId) {
+        user.googleId = sub;
+        modified = true;
+      }
+      if (picture && !user.profilePicture) {
+        user.profilePicture = picture;
+        modified = true;
+      }
+      if (modified) {
+        await user.save();
+      }
+    }
+
+    req.session.isLoggedIn = true;
+    req.session.user = user;
+    await req.session.save();
+
+    res.json({
+      success: true,
+      message: "Google login successful",
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userType: user.userType,
+        profilePicture: user.profilePicture
+      }
+    });
+  } catch (err) {
+    console.error('Google login error:', err);
+    res.status(500).json({
+      success: false,
+      error: err.message || "Failed to process Google sign-in",
+      message: err.message || "Failed to process Google sign-in",
+      errors: [err.message || "Failed to process Google sign-in"]
+    });
+  }
+};

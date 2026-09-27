@@ -351,6 +351,38 @@ export default function ObsidianVault() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggedNode, setDraggedNode] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
+
+  // Performance Optimization Refs: decouple high-frequency physics/render loops from React state thrashing
+  const hoveredNodeRef = useRef(null);
+  const draggedNodeRef = useRef(null);
+  const activeNoteIdRef = useRef(activeNoteId);
+  const alphaRef = useRef(1.0);
+  const isSimulatingRef = useRef(false);
+  const drawFrameRef = useRef(null);
+
+  useEffect(() => {
+    hoveredNodeRef.current = hoveredNode;
+  }, [hoveredNode]);
+
+  useEffect(() => {
+    draggedNodeRef.current = draggedNode;
+  }, [draggedNode]);
+
+  useEffect(() => {
+    activeNoteIdRef.current = activeNoteId;
+    if (drawFrameRef.current && !isSimulatingRef.current) {
+      drawFrameRef.current();
+    }
+  }, [activeNoteId]);
+
+  const reheatSimulation = (energy = 0.8) => {
+    alphaRef.current = Math.max(alphaRef.current, energy);
+    if (!isSimulatingRef.current && drawFrameRef.current) {
+      isSimulatingRef.current = true;
+      drawFrameRef.current();
+    }
+  };
+
   const [physicsSettings, setPhysicsSettings] = useState({
     repulsion: 4200,
     linkDistance: 210,
@@ -466,12 +498,12 @@ export default function ObsidianVault() {
   const processAndImportFiles = async (fileList) => {
     try {
       setLoading(true);
-      const parsedList = [];
-      for (const file of fileList) {
-        const rawText = await file.text();
-        const item = parseMarkdownFile(rawText, file.name);
-        parsedList.push(item);
-      }
+      const parsedList = await Promise.all(
+        fileList.map(async (file) => {
+          const rawText = await file.text();
+          return parseMarkdownFile(rawText, file.name);
+        })
+      );
 
       if (parsedList.length === 0) {
         setLoading(false);
@@ -488,8 +520,11 @@ export default function ObsidianVault() {
       setGraphData(updatedGraph);
       saveVaultToStorage(combinedNotes);
 
-      selectNote(parsedList[0].id, combinedNotes);
+      if (parsedList[0]) {
+        selectNote(parsedList[0].id, combinedNotes);
+      }
       setViewMode('graph');
+      reheatSimulation(1.0);
       showToast('Successfully imported ' + parsedList.length + ' markdown notes!', 'success');
     } catch (err) {
       console.error('Error importing vault files:', err);
@@ -575,20 +610,19 @@ export default function ObsidianVault() {
       });
     }
 
-    // Try backend live backlinks
+    // Try backend live backlinks in background
     if (id && !id.startsWith('ghost_') && !id.startsWith('import_') && !id.startsWith('note_')) {
-      try {
-        const blRes = await axios.get(API_URL + '/api/notebooks/' + id + '/backlinks', { withCredentials: true });
-        if (blRes.data && blRes.data.success) {
-          setBacklinks({
-            linkedMentions: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
-            directBacklinks: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
-            unlinkedMentions: Array.isArray(blRes.data.unlinkedMentions) ? blRes.data.unlinkedMentions : []
-          });
-        }
-      } catch (e) {
-        // silent catch
-      }
+      axios.get(API_URL + '/api/notebooks/' + id + '/backlinks', { withCredentials: true, timeout: 3500 })
+        .then(blRes => {
+          if (blRes.data && blRes.data.success) {
+            setBacklinks({
+              linkedMentions: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
+              directBacklinks: Array.isArray(blRes.data.linkedMentions) ? blRes.data.linkedMentions : [],
+              unlinkedMentions: Array.isArray(blRes.data.unlinkedMentions) ? blRes.data.unlinkedMentions : []
+            });
+          }
+        })
+        .catch(() => {});
     }
   };
 
@@ -651,56 +685,24 @@ export default function ObsidianVault() {
     }
   };
 
-  // 3. Create Brand New Note
-  const handleCreateNote = async (title = 'Untitled Note', content = '') => {
+  // 3. Create Brand New Note (Instant 0ms Optimistic Creation)
+  const handleCreateNote = (title = 'Untitled Note', content = '') => {
     try {
-      setSaving(true);
       const initialContent = content || ('# ' + title + '\n\nStart typing your thoughts here...\nUse `[[Other Note]]` to create bi-directional concept links.');
-      let newNote = null;
+      const localId = 'note_' + Date.now();
+      const newNote = {
+        id: localId,
+        _id: localId,
+        title,
+        label: title,
+        content: initialContent,
+        category: editCategory || 'General',
+        folder: editFolder || 'Notes',
+        tags: editTags || ['concept'],
+        color: editColor || '#3b82f6'
+      };
 
-      try {
-        const res = await axios.post(API_URL + '/api/notebooks', {
-          title,
-          content: initialContent,
-          category: editCategory || 'General',
-          folder: editFolder || 'Notes',
-          tags: editTags || ['concept'],
-          color: editColor || '#3b82f6'
-        }, { withCredentials: true });
-
-        if (res.data && res.data.success && res.data.notebook) {
-          const nb = res.data.notebook;
-          newNote = {
-            id: nb._id,
-            _id: nb._id,
-            title: nb.title,
-            label: nb.title,
-            content: nb.content || initialContent,
-            category: nb.category || 'General',
-            folder: nb.folder || 'Notes',
-            tags: nb.tags || ['concept'],
-            color: nb.color || '#3b82f6'
-          };
-        }
-      } catch (apiErr) {
-        console.warn('Backend create unavailable, creating note locally:', apiErr);
-      }
-
-      if (!newNote) {
-        const localId = 'note_' + Date.now();
-        newNote = {
-          id: localId,
-          _id: localId,
-          title,
-          label: title,
-          content: initialContent,
-          category: editCategory || 'General',
-          folder: editFolder || 'Notes',
-          tags: editTags || ['concept'],
-          color: editColor || '#3b82f6'
-        };
-      }
-
+      // Instantly update UI without waiting for network roundtrip
       const updatedNotes = [newNote, ...notes.filter(n => n.id !== newNote.id && n._id !== newNote.id)];
       setNotes(updatedNotes);
       const updatedGraph = buildGraphFromNotes(updatedNotes);
@@ -709,12 +711,31 @@ export default function ObsidianVault() {
 
       selectNote(newNote.id, updatedNotes);
       setEditorTab('edit');
+      reheatSimulation(0.85);
       showToast('Created note: ' + title, 'success');
+
+      // Sync to backend asynchronously in background
+      axios.post(API_URL + '/api/notebooks', {
+        title,
+        content: initialContent,
+        category: editCategory || 'General',
+        folder: editFolder || 'Notes',
+        tags: editTags || ['concept'],
+        color: editColor || '#3b82f6'
+      }, { withCredentials: true, timeout: 6000 })
+        .then(res => {
+          if (res.data?.success && res.data?.notebook?._id) {
+            const realId = res.data.notebook._id;
+            setNotes(prev => prev.map(n => (n.id === localId || n._id === localId) ? { ...n, id: realId, _id: realId } : n));
+            setActiveNoteId(prev => prev === localId ? realId : prev);
+          }
+        })
+        .catch(apiErr => {
+          console.warn('Backend create unavailable, note kept in local vault:', apiErr);
+        });
     } catch (err) {
       console.error('Error creating note:', err);
-      showToast('Created note locally', 'info');
-    } finally {
-      setSaving(false);
+      showToast('Error creating note', 'error');
     }
   };
 
@@ -1073,90 +1094,118 @@ export default function ObsidianVault() {
 
     let isRunning = true;
 
-    // Simulation Step Function
+    // Simulation Step & Render Function
     const stepPhysics = () => {
-      // 1. Hard Collision Avoidance + Coulomb Repulsion (Obsidian Engine)
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const n1 = nodes[i];
-          const n2 = nodes[j];
-          const dx = n2.x - n1.x;
-          const dy = n2.y - n1.y;
-          const distSq = dx * dx + dy * dy + 1;
-          const dist = Math.sqrt(distSq);
+      if (!isRunning) return;
 
-          // Hard collision constraint: nodes + labels never collapse or overlap
-          const minDist = n1.radius + n2.radius + 75;
-          if (dist < minDist && dist > 0) {
-            const overlap = (minDist - dist) * 0.5;
-            const nx = (dx / dist) * overlap;
-            const ny = (dy / dist) * overlap;
-            if (draggedNode?.id !== n1.id) {
-              n1.x -= nx;
-              n1.y -= ny;
+      const currentDragged = draggedNodeRef.current;
+      const alpha = alphaRef.current;
+
+      // 1. Compute forces only when simulation has energy (alpha > 0.003) or a node is being actively dragged
+      if (alpha > 0.003 || currentDragged) {
+        const forceScale = Math.min(1, alpha * 1.5);
+
+        // 1a. Hard Collision Avoidance + Coulomb Repulsion (Obsidian Engine)
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const n1 = nodes[i];
+            const n2 = nodes[j];
+            const dx = n2.x - n1.x;
+            const dy = n2.y - n1.y;
+            const distSq = dx * dx + dy * dy + 1;
+            const dist = Math.sqrt(distSq);
+
+            // Hard collision constraint: nodes never overlap
+            const minDist = n1.radius + n2.radius + 75;
+            if (dist < minDist && dist > 0) {
+              const overlap = (minDist - dist) * 0.5;
+              const nx = (dx / dist) * overlap * forceScale;
+              const ny = (dy / dist) * overlap * forceScale;
+              if (currentDragged?.id !== n1.id) {
+                n1.x -= nx;
+                n1.y -= ny;
+              }
+              if (currentDragged?.id !== n2.id) {
+                n2.x += nx;
+                n2.y += ny;
+              }
             }
-            if (draggedNode?.id !== n2.id) {
-              n2.x += nx;
-              n2.y += ny;
+
+            // Broad dispersion repulsion
+            const force = (physicsSettings.repulsion / (distSq + 250)) * forceScale;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+
+            if (currentDragged?.id !== n1.id) {
+              n1.vx -= fx;
+              n1.vy -= fy;
+            }
+            if (currentDragged?.id !== n2.id) {
+              n2.vx += fx;
+              n2.vy += fy;
             }
           }
+        }
 
-          // Broad dispersion repulsion
-          const force = (physicsSettings.repulsion / (distSq + 250));
+        // 1b. Hooke's Spring Attraction along edges
+        links.forEach(l => {
+          const s = l.sourceNode;
+          const t = l.targetNode;
+          const dx = t.x - s.x;
+          const dy = t.y - s.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const displacement = dist - physicsSettings.linkDistance;
+          const force = displacement * 0.02 * forceScale;
+
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
 
-          if (draggedNode?.id !== n1.id) {
-            n1.vx -= fx;
-            n1.vy -= fy;
+          if (currentDragged?.id !== s.id) {
+            s.vx += fx;
+            s.vy += fy;
           }
-          if (draggedNode?.id !== n2.id) {
-            n2.vx += fx;
-            n2.vy += fy;
+          if (currentDragged?.id !== t.id) {
+            t.vx -= fx;
+            t.vy -= fy;
           }
+        });
+
+        // 1c. Gentle Central Gravity
+        nodes.forEach(n => {
+          if (currentDragged?.id === n.id) return;
+          const dx = width / 2 - n.x;
+          const dy = height / 2 - n.y;
+          n.vx += dx * physicsSettings.gravity * forceScale;
+          n.vy += dy * physicsSettings.gravity * forceScale;
+
+          // Smooth damping
+          n.vx *= 0.82;
+          n.vy *= 0.82;
+
+          n.x += n.vx;
+          n.y += n.vy;
+        });
+
+        // Thermal cooling
+        if (!currentDragged) {
+          alphaRef.current *= 0.965;
         }
+      } else {
+        alphaRef.current = 0;
       }
 
-      // 2. Hooke's Spring Attraction along edges with relaxed elasticity
-      links.forEach(l => {
-        const s = l.sourceNode;
-        const t = l.targetNode;
-        const dx = t.x - s.x;
-        const dy = t.y - s.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const displacement = dist - physicsSettings.linkDistance;
-        const force = displacement * 0.02; // Soft spring prevents clumping
+      // 2. Render Frame
+      renderCanvas();
 
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
+      if (isRunning && (alphaRef.current > 0.003 || currentDragged)) {
+        isSimulatingRef.current = true;
+        animationFrameRef.current = requestAnimationFrame(stepPhysics);
+      } else {
+        isSimulatingRef.current = false;
+      }
+    };
 
-        if (draggedNode?.id !== s.id) {
-          s.vx += fx;
-          s.vy += fy;
-        }
-        if (draggedNode?.id !== t.id) {
-          t.vx -= fx;
-          t.vy -= fy;
-        }
-      });
-
-      // 3. Gentle Central Gravity (keeps graph centered without crushing nodes together)
-      nodes.forEach(n => {
-        if (draggedNode?.id === n.id) return;
-        const dx = width / 2 - n.x;
-        const dy = height / 2 - n.y;
-        n.vx += dx * physicsSettings.gravity;
-        n.vy += dy * physicsSettings.gravity;
-
-        // Smooth damping
-        n.vx *= 0.82;
-        n.vy *= 0.82;
-
-        n.x += n.vx;
-        n.y += n.vy;
-      });
-
-      // Render Frame
+    const renderCanvas = () => {
       ctx.clearRect(0, 0, width, height);
       ctx.save();
 
@@ -1168,11 +1217,14 @@ export default function ObsidianVault() {
       ctx.scale(z, z);
       ctx.translate(-width / 2, -height / 2);
 
+      const currentHovered = hoveredNodeRef.current;
+      const currentActiveId = activeNoteIdRef.current;
+      const hasFocus = Boolean(currentHovered || currentActiveId);
+
       // Render Links
-      const hasFocus = Boolean(hoveredNode || activeNoteId);
       links.forEach(l => {
-        const isHovered = hoveredNode && (l.sourceNode.id === hoveredNode.id || l.targetNode.id === hoveredNode.id);
-        const isActive = activeNoteId && (l.sourceNode.id === activeNoteId || l.targetNode.id === activeNoteId);
+        const isHovered = currentHovered && (l.sourceNode.id === currentHovered.id || l.targetNode.id === currentHovered.id);
+        const isActive = currentActiveId && (l.sourceNode.id === currentActiveId || l.targetNode.id === currentActiveId);
         const isConnected = isHovered || isActive;
 
         ctx.save();
@@ -1204,15 +1256,15 @@ export default function ObsidianVault() {
       nodes.forEach(n => {
         if (!physicsSettings.showUnresolved && n.isGhost) return;
 
-        const isHovered = hoveredNode?.id === n.id;
-        const isActive = activeNoteId === n.id;
-        const isConnectedToHover = hoveredNode && links.some(l => 
-          (l.sourceNode.id === hoveredNode.id && l.targetNode.id === n.id) ||
-          (l.targetNode.id === hoveredNode.id && l.sourceNode.id === n.id)
+        const isHovered = currentHovered?.id === n.id;
+        const isActive = currentActiveId === n.id;
+        const isConnectedToHover = currentHovered && links.some(l => 
+          (l.sourceNode.id === currentHovered.id && l.targetNode.id === n.id) ||
+          (l.targetNode.id === currentHovered.id && l.sourceNode.id === n.id)
         );
-        const isConnectedToActive = activeNoteId && links.some(l => 
-          (l.sourceNode.id === activeNoteId && l.targetNode.id === n.id) ||
-          (l.targetNode.id === activeNoteId && l.sourceNode.id === n.id)
+        const isConnectedToActive = currentActiveId && links.some(l => 
+          (l.sourceNode.id === currentActiveId && l.targetNode.id === n.id) ||
+          (l.targetNode.id === currentActiveId && l.sourceNode.id === n.id)
         );
         const isFocused = isHovered || isActive || isConnectedToHover || isConnectedToActive;
 
@@ -1245,7 +1297,7 @@ export default function ObsidianVault() {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Scale-Adaptive Obsidian Node Labels & Annotations
+        // Scale-Adaptive Node Labels & Annotations
         const currentZoom = zoomRef.current;
         const shouldShowLabel = 
           isHovered || 
@@ -1258,7 +1310,6 @@ export default function ObsidianVault() {
           ));
 
         if (shouldShowLabel) {
-          // World font size scales naturally when zooming in, with compression when zooming out
           const baseSize = (isActive || isHovered) ? 14 : 12;
           const worldFontSize = Math.max(9, baseSize / Math.pow(currentZoom, 0.35));
           const fontWeight = (isActive || isHovered) ? '600 ' : '500 ';
@@ -1266,14 +1317,12 @@ export default function ObsidianVault() {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
 
-          // Spacing below node edge
           const labelY = n.y + n.radius + (6 / currentZoom);
           const rawLabel = n.label || n.title || 'Untitled';
           const labelText = (!isHovered && !isActive && currentZoom < 0.65 && rawLabel.length > 20) 
             ? rawLabel.slice(0, 18) + '..' 
             : rawLabel;
 
-          // High-Contrast Text Halo (proportional stroke to keep letters crisp)
           ctx.save();
           ctx.lineJoin = 'round';
           ctx.miterLimit = 2;
@@ -1281,14 +1330,12 @@ export default function ObsidianVault() {
           ctx.strokeStyle = theme === 'light' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(13, 17, 23, 0.95)';
           ctx.strokeText(labelText, n.x, labelY);
 
-          // Text Fill
           ctx.fillStyle = (isActive || isHovered)
             ? (theme === 'light' ? '#2563eb' : '#60a5fa')
             : (n.isGhost ? '#9ca3af' : (theme === 'light' ? '#111827' : '#f3f4f6'));
           ctx.fillText(labelText, n.x, labelY);
           ctx.restore();
 
-          // Sub-annotation Pill: Category & Link count when hovered, active, or zoomed close
           const showSubAnnotation = isHovered || isActive || (currentZoom >= 1.25 && (n.category || n.degree > 0));
           if (showSubAnnotation) {
             const annotationText = n.category 
@@ -1310,7 +1357,6 @@ export default function ObsidianVault() {
             const pillX = n.x - (pillWidth / 2);
             const pillRadius = 4 / currentZoom;
 
-            // Pill Background
             ctx.beginPath();
             if (ctx.roundRect) {
               ctx.roundRect(pillX, subY - pillPadY, pillWidth, pillHeight, pillRadius);
@@ -1323,7 +1369,6 @@ export default function ObsidianVault() {
             ctx.strokeStyle = isHovered ? 'rgba(96, 165, 250, 0.6)' : (theme === 'light' ? 'rgba(203, 213, 225, 0.8)' : 'rgba(71, 85, 105, 0.8)');
             ctx.stroke();
 
-            // Pill Text
             ctx.fillStyle = isHovered ? '#60a5fa' : (theme === 'light' ? '#475569' : '#94a3b8');
             ctx.fillText(annotationText, n.x, subY);
             ctx.restore();
@@ -1333,12 +1378,17 @@ export default function ObsidianVault() {
       });
 
       ctx.restore();
+    };
 
-      if (isRunning) {
-        animationFrameRef.current = requestAnimationFrame(stepPhysics);
+    drawFrameRef.current = () => {
+      if (!isSimulatingRef.current) {
+        renderCanvas();
       }
     };
 
+    // Reheat simulation on initial load or graph change
+    alphaRef.current = 1.0;
+    isSimulatingRef.current = true;
     stepPhysics();
 
     const handleResize = () => {
@@ -1347,16 +1397,18 @@ export default function ObsidianVault() {
       canvas.width = width * window.devicePixelRatio;
       canvas.height = height * window.devicePixelRatio;
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      renderCanvas();
     };
 
     window.addEventListener('resize', handleResize);
 
     return () => {
       isRunning = false;
+      isSimulatingRef.current = false;
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       window.removeEventListener('resize', handleResize);
     };
-  }, [viewMode, graphData, draggedNode, hoveredNode, activeNoteId, physicsSettings, theme]);
+  }, [viewMode, graphData, physicsSettings, theme]);
 
   // Graph Canvas Mouse Interaction (Pan, Zoom, Drag Node)
   const handleCanvasMouseDown = (e) => {
@@ -1366,7 +1418,6 @@ export default function ObsidianVault() {
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
-    // Transform mouse coordinate into simulation space using current zoom and pan refs
     const width = canvas.width / window.devicePixelRatio;
     const height = canvas.height / window.devicePixelRatio;
     const z = zoomRef.current;
@@ -1374,7 +1425,6 @@ export default function ObsidianVault() {
     const simX = (mouseX - p.x - width / 2) / z + width / 2;
     const simY = (mouseY - p.y - height / 2) / z + height / 2;
 
-    // Check if clicked a node
     const candidateNodes = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
     const clicked = candidateNodes.find(n => {
       const dx = (n.x || 0) - simX;
@@ -1384,7 +1434,9 @@ export default function ObsidianVault() {
     });
 
     if (clicked) {
+      draggedNodeRef.current = clicked;
       setDraggedNode(clicked);
+      reheatSimulation(0.5);
       if (clicked.isGhost) {
         if (window.confirm('Create new note "' + clicked.title + '"?')) {
           handleCreateNote(clicked.title);
@@ -1412,11 +1464,12 @@ export default function ObsidianVault() {
     const simX = (mouseX - p.x - width / 2) / z + width / 2;
     const simY = (mouseY - p.y - height / 2) / z + height / 2;
 
-    if (draggedNode) {
-      draggedNode.x = simX;
-      draggedNode.y = simY;
-      draggedNode.vx = 0;
-      draggedNode.vy = 0;
+    if (draggedNodeRef.current) {
+      draggedNodeRef.current.x = simX;
+      draggedNodeRef.current.y = simY;
+      draggedNodeRef.current.vx = 0;
+      draggedNodeRef.current.vy = 0;
+      reheatSimulation(0.35);
     } else if (isDraggingCanvas) {
       const newPan = {
         x: e.clientX - dragStart.x,
@@ -1424,8 +1477,11 @@ export default function ObsidianVault() {
       };
       panRef.current = newPan;
       setGraphPan(newPan);
+      if (!isSimulatingRef.current) {
+        drawFrameRef.current?.();
+      }
     } else {
-      // Hover detection
+      // Hover detection with strict change check to avoid React state thrashing
       const activeCandidates = simNodesRef.current.length > 0 ? simNodesRef.current : graphData.nodes;
       const hovered = activeCandidates.find(n => {
         const dx = (n.x || 0) - simX;
@@ -1433,13 +1489,23 @@ export default function ObsidianVault() {
         const r = Math.max(12, n.radius || 12);
         return dx * dx + dy * dy <= r * r;
       });
-      setHoveredNode(hovered || null);
+      const nextId = hovered ? hovered.id : null;
+      const currentId = hoveredNodeRef.current ? hoveredNodeRef.current.id : null;
+      if (nextId !== currentId) {
+        hoveredNodeRef.current = hovered || null;
+        setHoveredNode(hovered || null);
+        if (!isSimulatingRef.current) {
+          drawFrameRef.current?.();
+        }
+      }
     }
   };
 
   const handleCanvasMouseUp = () => {
+    draggedNodeRef.current = null;
     setDraggedNode(null);
     setIsDraggingCanvas(false);
+    reheatSimulation(0.2);
   };
 
   // Touch support for mobile devices

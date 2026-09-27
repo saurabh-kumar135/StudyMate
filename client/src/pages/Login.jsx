@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, Lock, LogIn, Chrome } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../context/AuthContext';
 
 import { API_URL } from '../config/api';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { googleLogin } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -166,31 +169,50 @@ export default function Login() {
           </div>
 
           {/* Continue with Google */}
-          <button
-            type="button"
-            onClick={() => {
-              setError('Google Single Sign-On is currently in developer preview. Please log in with your email & password.');
-            }}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              color: 'var(--text-primary)',
-              fontSize: '16px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              marginBottom: '16px'
-            }}
-          >
-            <Chrome style={{ width: '20px', height: '20px', color: '#3b82f6' }} />
-            Continue with Google
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', width: '100%' }}>
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                try {
+                  if (!credentialResponse || !credentialResponse.credential) {
+                    setError('Failed to get credentials from Google.');
+                    return;
+                  }
+                  const base64Url = credentialResponse.credential.split('.')[1];
+                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  const jsonPayload = decodeURIComponent(
+                    atob(base64)
+                      .split('')
+                      .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                      .join('')
+                  );
+                  const decoded = JSON.parse(jsonPayload);
+
+                  const result = await googleLogin({
+                    email: decoded.email,
+                    name: decoded.name || decoded.given_name || 'Google User',
+                    picture: decoded.picture,
+                    sub: decoded.sub,
+                  });
+
+                  if (result.success) {
+                    navigate('/app/dashboard');
+                  } else {
+                    setError(result.errors?.[0] || 'Google Sign-In failed');
+                  }
+                } catch (err) {
+                  console.error('Google login error:', err);
+                  setError('Google Sign-In failed. Please sign in with email and password.');
+                }
+              }}
+              onError={() => {
+                setError('Google Sign-In failed or was cancelled. Please try again.');
+              }}
+              useOneTap={false}
+              theme="outline"
+              size="large"
+              width="100%"
+            />
+          </div>
 
           {/* OR Divider */}
           <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
