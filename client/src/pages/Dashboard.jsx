@@ -85,8 +85,17 @@ export default function Dashboard() {
         if (featuredResponse.data.success) {
           setFeaturedNotebooks(featuredResponse.data.notebooks);
         }
+
+        // Track initial activity only if authenticated
+        if (statsResponse.data.success) {
+          try {
+            await axios.post(`${API_URL}/api/user/track-time`, { minutes: 1 }, { withCredentials: true });
+          } catch (e) {}
+        }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        if (error.response?.status !== 401) {
+          console.error('Error fetching data:', error);
+        }
       } finally {
         setLoading(false);
       }
@@ -94,24 +103,15 @@ export default function Dashboard() {
 
     fetchData();
 
-    // Track time spent on the platform (every 5 minutes)
+    // Track time spent on the platform (every 5 minutes for active user)
     const trackTimeInterval = setInterval(async () => {
       try {
-        await axios.post(`${API_URL}/api/user/track-time`, { minutes: 5 }, { withCredentials: true });
-      } catch (error) {
-        console.error('Error tracking time:', error);
-      }
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          await axios.post(`${API_URL}/api/user/track-time`, { minutes: 5 }, { withCredentials: true });
+        }
+      } catch (error) {}
     }, 5 * 60 * 1000);
-
-    // Track initial activity
-    const trackInitialActivity = async () => {
-      try {
-        await axios.post(`${API_URL}/api/user/track-time`, { minutes: 1 }, { withCredentials: true });
-      } catch (error) {
-        console.error('Error tracking initial activity:', error);
-      }
-    };
-    trackInitialActivity();
 
     return () => clearInterval(trackTimeInterval);
   }, []);

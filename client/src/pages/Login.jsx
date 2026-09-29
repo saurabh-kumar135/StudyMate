@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Mail, Lock, LogIn, Chrome } from 'lucide-react';
+import { Mail, Lock, LogIn, Chrome, Sparkles } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,7 +9,7 @@ import { API_URL } from '../config/api';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { googleLogin } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -33,6 +33,34 @@ export default function Login() {
       [e.target.name]: e.target.value
     });
     setError('');
+  };
+
+  const handleDemoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/auth/login`, {
+        email: 'aarav.sharma@studymate.ac.in',
+        password: 'StudyMate@2026'
+      }, { withCredentials: true });
+
+      if (response.data.success) {
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+        if (login) {
+          await login('aarav.sharma@studymate.ac.in', 'StudyMate@2026');
+        }
+        navigate('/app/dashboard');
+      } else {
+        setError('Demo login failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setError('Demo login failed. Please check network connection.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -92,10 +120,52 @@ export default function Login() {
           fontWeight: 'bold', 
           color: '#3b82f6', 
           textAlign: 'center',
-          marginBottom: '32px'
+          marginBottom: '20px'
         }}>
           Log in
         </h1>
+
+        {/* One-Click Demo Student Access */}
+        <div style={{
+          marginBottom: '24px',
+          padding: '16px',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          border: '1px dashed #3b82f6',
+          borderRadius: '12px',
+          textAlign: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '6px' }}>
+            <Sparkles style={{ width: '18px', height: '18px', color: '#3b82f6' }} />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: '#3b82f6' }}>Instant Demo Access</span>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
+            Explore full student analytics, Obsidian graph & study rooms instantly:
+          </p>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              backgroundColor: '#3b82f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '14px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}
+          >
+            <Sparkles style={{ width: '16px', height: '16px' }} />
+            <span>⚡ One-Click Demo Student Login</span>
+          </button>
+        </div>
 
         {error && (
           <div style={{ 
@@ -169,7 +239,7 @@ export default function Login() {
           </div>
 
           {/* Continue with Google */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px', width: '100%' }}>
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 try {
@@ -205,13 +275,16 @@ export default function Login() {
                 }
               }}
               onError={() => {
-                setError('Google Sign-In failed or was cancelled. Please try again.');
+                setError('Google Sign-In failed. Note: Authorized JavaScript origin required in Google Cloud.');
               }}
               useOneTap={false}
               theme="outline"
               size="large"
-              width="100%"
+              width="360"
             />
+            <p style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.4 }}>
+              Note: Google OAuth requires authorized domain origin. If origin mismatch occurs, use One-Click Demo above.
+            </p>
           </div>
 
           {/* OR Divider */}

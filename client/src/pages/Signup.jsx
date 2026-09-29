@@ -392,10 +392,13 @@ export default function Signup() {
                 useOneTap={false}
                 theme="outline"
                 size="large"
-                width="100%"
+                width="360"
                 text="signup_with"
               />
             </div>
+            <p style={{ marginTop: '-8px', marginBottom: '16px', fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.4 }}>
+              Note: Google OAuth requires authorized domain origin. If origin mismatch occurs, use email registration below.
+            </p>
 
             {/* OR Divider */}
             <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0' }}>
