@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Dashboard from './pages/Dashboard';
 import AITutor from './pages/AITutor';
@@ -21,7 +22,8 @@ import './App.css';
 function App() {
   return (
     <ThemeProvider>
-      <Router>
+      <AuthProvider>
+        <Router>
         <Routes>
           {/* Landing Page (No Navbar) */}
           <Route path="/" element={<Home />} />
@@ -71,6 +73,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
