@@ -442,16 +442,6 @@ For support, email saurabhrajput.25072005@gmail.com or open an issue in the repo
 
 ---
 
-## 📄 Ready-to-Use Resume Bullet Points
-
-> **StudyMate — AI Study Platform & Student Retention Machine Learning Engine** | *Node.js, Express, React, MongoDB Atlas, Scikit-Learn / ANN, Google Gemini API*
-> - Engineered a student dropout risk and retention prediction model ($\text{ROC-AUC} = 0.892$, $F_1 = 86.2\%$, $\text{Precision} = 87.4\%$) calibrated on 12,500 behavioral engagement vectors.
-> - Developed an interactive What-If Churn Simulator enabling students and educators to forecast how adjusting weekly study cadence (+2h/wk) and habit consistency (+3d streak) reduces abandonment probability by up to 64%.
-> - Built real-time retention telemetry dashboards with dynamic cohort segmentation donut charts (42% Champions, 33% Steady, 18% At-Risk) and 7-week retention curve histograms.
-> - Integrated Google Gemini generative AI for automated multi-format document summarization, instant quiz generation, and personalized conversational tutoring with active recall reinforcement.
-
----
-
 **Production Ready**: This application includes enterprise-level security features, AI integration, and is ready for production deployment with proper environment configuration.
 
 **Last updated**: September 2026
