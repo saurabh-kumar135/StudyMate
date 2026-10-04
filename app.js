@@ -42,42 +42,52 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174', 
   'http://localhost:5175',
+  'https://study-mate1.vercel.app',
   'https://havento.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
+    // Allow requests with no origin (mobile apps, Postman, curl, server-to-server)
     if (!origin) {
-      console.log('✅ CORS: Allowing request with no origin');
       return callback(null, true);
     }
     
-    // Allow any vercel.app domain
-    if (origin && origin.includes('.vercel.app')) {
-      console.log('✅ CORS: Allowing Vercel domain:', origin);
+    // Allow any vercel.app domain (including preview URLs)
+    if (origin.endsWith('.vercel.app') || origin.includes('vercel.app')) {
       return callback(null, true);
     }
     
-    // Allow any render.com domain (for testing backend directly)
-    if (origin && origin.includes('.onrender.com')) {
-      console.log('✅ CORS: Allowing Render domain:', origin);
+    // Allow any render.com domain
+    if (origin.endsWith('.onrender.com') || origin.includes('onrender.com')) {
       return callback(null, true);
     }
     
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ CORS: Allowing whitelisted origin:', origin);
-      callback(null, true);
-    } else {
-      console.log('❌ CORS Error - Origin not allowed:', origin);
-      console.log('📋 Allowed origins:', allowedOrigins);
-      console.log('💡 Add this origin to FRONTEND_URL env variable or allowedOrigins array');
-      callback(new Error('Not allowed by CORS'));
+      return callback(null, true);
     }
+    
+    // Non-whitelisted origin: gracefully disallow without throwing unhandled server error
+    callback(null, false);
   },
   credentials: true
 }));
+
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    service: 'StudyMate Backend API',
+    status: 'online',
+    version: 'v2.4',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/check-session',
+      materials: '/api/materials',
+      studyRooms: '/api/study-rooms/active'
+    }
+  });
+});
 
 
 

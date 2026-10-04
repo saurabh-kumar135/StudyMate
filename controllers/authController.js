@@ -142,62 +142,95 @@ exports.postSignup = [
 ]
 
 exports.postLogin = async (req, res, next) => {
-  const {email, password} = req.body;
-  if (!email || !password) {
-    return res.status(422).json({
+  try {
+    const {email, password} = req.body;
+    if (!email || !password) {
+      return res.status(422).json({
+        success: false,
+        error: "Email and password are required",
+        message: "Email and password are required",
+        errors: ["Email and password are required"],
+      });
+    }
+
+    const normalizedEmail = normalizeUserEmail(email);
+    const rawLower = email.trim().toLowerCase();
+
+    let user = await User.findOne({
+      $or: [
+        { email: rawLower },
+        { email: normalizedEmail }
+      ]
+    });
+
+    // Auto-provision demo student account if requested
+    if (!user && (normalizedEmail === 'aarav.sharma@studymate.ac.in' || rawLower === 'aarav.sharma@studymate.ac.in')) {
+      const hashedPassword = await bcrypt.hash('StudyMate@2026', 12);
+      user = new User({
+        firstName: 'Aarav',
+        lastName: 'Sharma',
+        email: 'aarav.sharma@studymate.ac.in',
+        password: hashedPassword,
+        userType: 'student'
+      });
+      await user.save();
+    }
+
+    if (!user) {
+      return res.status(422).json({
+        success: false,
+        error: "User does not exist with this email",
+        message: "User does not exist with this email. Please check your email or sign up.",
+        errors: ["User does not exist with this email"],
+        oldInput: {email},
+      });
+    }
+
+    if (!user.password) {
+      return res.status(422).json({
+        success: false,
+        error: "Please sign in with Google for this account",
+        message: "This account was created with Google Sign-In. Please click Continue with Google.",
+        errors: ["This account was created with Google Sign-In. Please click Continue with Google."],
+        oldInput: {email},
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(422).json({
+        success: false,
+        error: "Invalid password",
+        message: "Invalid password. Please check your credentials.",
+        errors: ["Invalid password"],
+        oldInput: {email},
+      });
+    }
+
+    req.session.isLoggedIn = true;
+    req.session.user = user;
+    await req.session.save();
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        userType: user.userType,
+      },
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({
       success: false,
-      error: "Email and password are required",
-      message: "Email and password are required",
-      errors: ["Email and password are required"],
+      error: "Internal server error during login",
+      message: err.message || "An unexpected error occurred during login. Please try again.",
+      errors: [err.message || "An unexpected error occurred during login"]
     });
   }
-
-  const normalizedEmail = normalizeUserEmail(email);
-  const rawLower = email.trim().toLowerCase();
-
-  const user = await User.findOne({
-    $or: [
-      { email: rawLower },
-      { email: normalizedEmail }
-    ]
-  });
-
-  if (!user) {
-    return res.status(422).json({
-      success: false,
-      error: "User does not exist with this email",
-      message: "User does not exist with this email. Please check your email or sign up.",
-      errors: ["User does not exist with this email"],
-      oldInput: {email},
-    });
-  }
-
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) {
-    return res.status(422).json({
-      success: false,
-      error: "Invalid password",
-      message: "Invalid password. Please check your credentials.",
-      errors: ["Invalid password"],
-      oldInput: {email},
-    });
-  }
-
-  req.session.isLoggedIn = true;
-  req.session.user = user;
-  await req.session.save();
-
-  res.json({
-    success: true,
-    message: "Login successful",
-    user: {
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      userType: user.userType,
-    },
-  });
 }
 
 exports.postLogout = (req, res, next) => {

@@ -81,8 +81,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setAuthUser = (userData) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, loading, login, googleLogin, logout, checkSessionStatus }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, loading, login, googleLogin, logout, checkSessionStatus, setAuthUser }}>
       {children}
     </AuthContext.Provider>
   );

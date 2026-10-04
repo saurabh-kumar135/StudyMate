@@ -2,7 +2,7 @@ const rateLimit = require('express-rate-limit');
 
 const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 15,
   message: {
     success: false,
     errors: ['Too many verification requests. Please try again in 15 minutes.']
@@ -14,7 +14,7 @@ const otpLimiter = rateLimit({
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000,
   message: {
     success: false,
     errors: ['Too many requests. Please try again later.']
@@ -24,11 +24,11 @@ const apiLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
+  windowMs: 15 * 60 * 1000,
+  max: 30,
   message: {
     success: false,
-    errors: ['Too many authentication attempts. Please try again in 1 hour.']
+    errors: ['Too many authentication attempts. Please try again in 15 minutes.']
   },
   standardHeaders: true,
   legacyHeaders: false
