@@ -52,8 +52,8 @@ const userSchema = mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['guest', 'host'],
-    default: 'guest'
+    enum: ['guest', 'host', 'student', 'tutor'],
+    default: 'student'
   },
   isSeed: {
     type: Boolean,
