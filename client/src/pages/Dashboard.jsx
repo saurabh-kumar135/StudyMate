@@ -42,10 +42,17 @@ export default function Dashboard() {
     quizzesCompleted: 0,
     materialsReviewed: 0
   });
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [recentNotebooks, setRecentNotebooks] = useState([]);
   const [featuredNotebooks, setFeaturedNotebooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 640 : false);
   const [isTablet, setIsTablet] = useState(typeof window !== 'undefined' ? (window.innerWidth > 640 && window.innerWidth <= 1024) : false);
 
@@ -60,44 +67,43 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchData = async () => {
       try {
-        // Fetch user stats
-        const statsResponse = await axios.get(`${API_URL}/api/user/stats`, { withCredentials: true });
-        if (statsResponse.data.success) {
+        const [statsResult, recentResult, featuredResult] = await Promise.allSettled([
+          axios.get(`${API_URL}/api/user/stats`, { withCredentials: true, timeout: 6000 }),
+          axios.get(`${API_URL}/api/notebooks/recent`, { withCredentials: true, timeout: 6000 }),
+          axios.get(`${API_URL}/api/notebooks/featured`, { withCredentials: true, timeout: 6000 })
+        ]);
+
+        if (!isMounted) return;
+
+        if (statsResult.status === 'fulfilled' && statsResult.value.data.success) {
+          const s = statsResult.value.data.stats;
           setStats({
-            weeklyTimeHours: statsResponse.data.stats.weeklyTimeHours || '0',
-            currentStreak: statsResponse.data.stats.currentStreak || 0,
-            quizzesCompleted: statsResponse.data.stats.quizzesCompleted || 0,
-            materialsReviewed: statsResponse.data.stats.materialsReviewed || 0
+            weeklyTimeHours: s.weeklyTimeHours || '0',
+            currentStreak: s.currentStreak || 0,
+            quizzesCompleted: s.quizzesCompleted || 0,
+            materialsReviewed: s.materialsReviewed || 0
           });
-          setUser(statsResponse.data.user);
+          if (statsResult.value.data.user) {
+            setUser(statsResult.value.data.user);
+          }
         }
 
-        // Fetch recent notebooks
-        const recentResponse = await axios.get(`${API_URL}/api/notebooks/recent`, { withCredentials: true });
-        if (recentResponse.data.success) {
-          setRecentNotebooks(recentResponse.data.notebooks);
+        if (recentResult.status === 'fulfilled' && recentResult.value.data.success) {
+          setRecentNotebooks(recentResult.value.data.notebooks || []);
         }
 
-        // Fetch featured notebooks
-        const featuredResponse = await axios.get(`${API_URL}/api/notebooks/featured`, { withCredentials: true });
-        if (featuredResponse.data.success) {
-          setFeaturedNotebooks(featuredResponse.data.notebooks);
-        }
-
-        // Track initial activity only if authenticated
-        if (statsResponse.data.success) {
-          try {
-            await axios.post(`${API_URL}/api/user/track-time`, { minutes: 1 }, { withCredentials: true });
-          } catch (e) {}
+        if (featuredResult.status === 'fulfilled' && featuredResult.value.data.success) {
+          setFeaturedNotebooks(featuredResult.value.data.notebooks || []);
         }
       } catch (error) {
-        if (error.response?.status !== 401) {
-          console.error('Error fetching data:', error);
-        }
+        console.warn('Dashboard fetchData note:', error.message);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
